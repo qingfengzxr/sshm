@@ -1,0 +1,104 @@
+name: Build Binaries
+
+on:
+  push:
+    tags:
+      - '*'
+  release:
+    types: [created]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          # Linux AMD64
+          - goos: linux
+            goarch: amd64
+            suffix: linux-amd64
+          # Linux ARM64
+          - goos: linux
+            goarch: arm64
+            suffix: linux-arm64
+          # macOS AMD64 (Intel)
+          - goos: darwin
+            goarch: amd64
+            suffix: darwin-amd64
+          # macOS ARM64 (Apple Silicon)
+          - goos: darwin
+            goarch: arm64
+            suffix: darwin-arm64
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Build binary
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+        CGO_ENABLED: 0
+      run: |
+        mkdir -p dist
+        VERSION=${GITHUB_REF#refs/tags/}
+        go build -ldflags="-s -w -X sshm/cmd.version=${VERSION}" -o dist/sshm-${{ matrix.suffix }} .
+
+    - name: Create tarball
+      run: |
+        cd dist
+        tar -czf sshm-${{ matrix.suffix }}.tar.gz sshm-${{ matrix.suffix }}
+        rm sshm-${{ matrix.suffix }}
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: sshm-${{ matrix.suffix }}
+        path: dist/sshm-${{ matrix.suffix }}.tar.gz
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./artifacts
+        merge-multiple: true
+
+    - name: Prepare release assets
+      run: |
+        mkdir -p release
+        find ./artifacts -name "*.tar.gz" -exec cp {} ./release/ \;
+        ls -la ./release/
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: ./release/*
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
