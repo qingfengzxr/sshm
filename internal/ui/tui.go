@@ -14,14 +14,27 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-var baseStyle = lipgloss.NewStyle().
-	BorderStyle(lipgloss.NormalBorder()).
-	BorderForeground(lipgloss.Color("240"))
-
-var searchStyle = lipgloss.NewStyle().
+var searchStyleFocused = lipgloss.NewStyle().
 	BorderStyle(lipgloss.RoundedBorder()).
 	BorderForeground(lipgloss.Color("36")).
 	Padding(0, 1)
+
+var searchStyleUnfocused = lipgloss.NewStyle().
+	BorderStyle(lipgloss.RoundedBorder()).
+	BorderForeground(lipgloss.Color("240")).
+	Padding(0, 1)
+
+var headerStyle = lipgloss.NewStyle().
+	Foreground(lipgloss.Color("36")).
+	Bold(true).
+	Align(lipgloss.Center)
+
+const asciiTitle = `
+ _____ _____ _   _ _____
+|   __|   __|  |  |     |
+|__   |__   |     | | | |
+|_____|_____|__|__|_|_|_|
+`
 
 type Model struct {
 	table         table.Model
@@ -47,13 +60,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc", "ctrl+c":
-			if m.searchMode {
-				// Exit search mode
-				m.searchMode = false
-				m.searchInput.Blur()
-				m.table.Focus()
-				return m, nil
-			}
 			if m.deleteMode {
 				// Exit delete mode
 				m.deleteMode = false
@@ -74,9 +80,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.searchInput.Focus()
 				return m, textinput.Blink
 			}
+		case "tab":
+			if !m.deleteMode {
+				// Toggle focus between search input and table
+				if m.searchMode {
+					// Switch from search to table
+					m.searchMode = false
+					m.searchInput.Blur()
+					m.table.Focus()
+				} else {
+					// Switch from table to search
+					m.searchMode = true
+					m.table.Blur()
+					m.searchInput.Focus()
+					return m, textinput.Blink
+				}
+				return m, nil
+			}
 		case "enter":
 			if m.searchMode {
-				// Exit search mode and focus table
+				// Validate search and return to table mode to allow commands
 				m.searchMode = false
 				m.searchInput.Blur()
 				m.table.Focus()
@@ -153,16 +176,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Update components based on mode
 	if m.searchMode {
 		m.searchInput, cmd = m.searchInput.Update(msg)
-		// Filter hosts when search input changes
-		if m.searchInput.Value() != "" {
-			m.filteredHosts = m.filterHosts(m.searchInput.Value())
-		} else {
-			m.filteredHosts = m.hosts
-		}
-		m.updateTableRows()
 	} else {
 		m.table, cmd = m.table.Update(msg)
 	}
+
+	// Always filter hosts when search input changes (regardless of mode)
+	if m.searchInput.Value() != "" {
+		m.filteredHosts = m.filterHosts(m.searchInput.Value())
+	} else {
+		m.filteredHosts = m.hosts
+	}
+	m.updateTableRows()
 
 	return m, cmd
 }
@@ -174,20 +198,37 @@ func (m Model) View() string {
 
 	var view strings.Builder
 
-	// Add search bar
-	searchPrompt := "Search (/ to search, ESC to exit search): "
+	// Add ASCII title
+	view.WriteString(headerStyle.Render(asciiTitle) + "\n")
+
+	// Add search bar (always visible) with appropriate style based on focus
+	searchPrompt := "Search (/ to focus, Tab to switch): "
 	if m.searchMode {
-		view.WriteString(searchStyle.Render(searchPrompt+m.searchInput.View()) + "\n\n")
+		view.WriteString(searchStyleFocused.Render(searchPrompt+m.searchInput.View()) + "\n\n")
+	} else {
+		view.WriteString(searchStyleUnfocused.Render(searchPrompt+m.searchInput.View()) + "\n\n")
 	}
 
-	// Add table
-	view.WriteString(baseStyle.Render(m.table.View()))
+	// Add table with appropriate style based on focus
+	if m.searchMode {
+		// Table is not focused, use gray border
+		tableStyle := lipgloss.NewStyle().
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(lipgloss.Color("240"))
+		view.WriteString(tableStyle.Render(m.table.View()))
+	} else {
+		// Table is focused, use green border
+		tableStyle := lipgloss.NewStyle().
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(lipgloss.Color("36"))
+		view.WriteString(tableStyle.Render(m.table.View()))
+	}
 
 	// Add help text
 	if !m.searchMode {
-		view.WriteString("\nUse ↑/↓ to navigate • Enter to connect • (a)dd • (e)dit • (d)elete • / to search • (q)uit")
+		view.WriteString("\nUse ↑/↓ to navigate • Enter to connect • (a)dd • (e)dit • (d)elete • / to search • Tab to switch • q/ESC to quit")
 	} else {
-		view.WriteString("\nType to filter hosts by name or tag • Enter to select • ESC to exit search")
+		view.WriteString("\nType to filter hosts • Enter to validate search • Tab to switch to table • ESC to quit")
 	}
 
 	return view.String()
@@ -353,8 +394,8 @@ func RunInteractiveMode(hosts []config.SSHHost) error {
 	for {
 		m := NewModel(hosts)
 
-		// Start the application in terminal (without alt screen)
-		p := tea.NewProgram(m)
+		// Start the application in alt screen mode for clean exit
+		p := tea.NewProgram(m, tea.WithAltScreen())
 		finalModel, err := p.Run()
 		if err != nil {
 			return fmt.Errorf("error running TUI: %w", err)
@@ -369,9 +410,6 @@ func RunInteractiveMode(hosts []config.SSHHost) error {
 					// Continue the loop to return to the main interface
 					continue
 				}
-
-				// Clear screen before returning to TUI
-				fmt.Print("\033[2J\033[H")
 
 				// Refresh the hosts list after editing
 				refreshedHosts, err := config.ParseSSHConfig()
@@ -389,9 +427,6 @@ func RunInteractiveMode(hosts []config.SSHHost) error {
 					// Continue the loop to return to the main interface
 					continue
 				}
-
-				// Clear screen before returning to TUI
-				fmt.Print("\033[2J\033[H")
 
 				// Refresh the hosts list after adding
 				refreshedHosts, err := config.ParseSSHConfig()
