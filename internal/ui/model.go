@@ -46,16 +46,13 @@ type Model struct {
 	searchMode     bool
 	deleteMode     bool
 	deleteHost     string
-	exitAction     string
-	exitHostName   string
 	historyManager *history.HistoryManager
 	sortMode       SortMode
 
 	// View management
-	viewMode     ViewMode
-	addForm      *addFormModel
-	editForm     *editFormModel
-	previousView ViewMode
+	viewMode ViewMode
+	addForm  *addFormModel
+	editForm *editFormModel
 
 	// Terminal size and styles
 	width  int
