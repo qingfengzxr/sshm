@@ -181,15 +181,18 @@ func ParseSSHConfigFile(configPath string) ([]SSHHost, error) {
 
 // AddSSHHost adds a new SSH host to the config file
 func AddSSHHost(host SSHHost) error {
-	configMutex.Lock()
-	defer configMutex.Unlock()
-
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return err
 	}
-
 	configPath := filepath.Join(homeDir, ".ssh", "config")
+	return AddSSHHostToFile(host, configPath)
+}
+
+// AddSSHHostToFile adds a new SSH host to a specific config file
+func AddSSHHostToFile(host SSHHost, configPath string) error {
+	configMutex.Lock()
+	defer configMutex.Unlock()
 
 	// Create backup before modification if file exists
 	if _, err := os.Stat(configPath); err == nil {
@@ -198,8 +201,8 @@ func AddSSHHost(host SSHHost) error {
 		}
 	}
 
-	// Check if host already exists
-	exists, err := HostExists(host.Name)
+	// Check if host already exists in the specified config file
+	exists, err := HostExistsInFile(host.Name, configPath)
 	if err != nil {
 		return err
 	}
@@ -354,6 +357,21 @@ func HostExists(hostName string) (bool, error) {
 	return false, nil
 }
 
+// HostExistsInFile checks if a host exists in a specific config file
+func HostExistsInFile(hostName string, configPath string) (bool, error) {
+	hosts, err := ParseSSHConfigFile(configPath)
+	if err != nil {
+		return false, err
+	}
+
+	for _, host := range hosts {
+		if host.Name == hostName {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // GetSSHHost retrieves a specific host configuration by name
 func GetSSHHost(hostName string) (*SSHHost, error) {
 	hosts, err := ParseSSHConfig()
@@ -369,17 +387,35 @@ func GetSSHHost(hostName string) (*SSHHost, error) {
 	return nil, fmt.Errorf("host '%s' not found", hostName)
 }
 
+// GetSSHHostFromFile retrieves a specific host configuration by name from a specific config file
+func GetSSHHostFromFile(hostName string, configPath string) (*SSHHost, error) {
+	hosts, err := ParseSSHConfigFile(configPath)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, host := range hosts {
+		if host.Name == hostName {
+			return &host, nil
+		}
+	}
+	return nil, fmt.Errorf("host '%s' not found", hostName)
+}
+
 // UpdateSSHHost updates an existing SSH host configuration
 func UpdateSSHHost(oldName string, newHost SSHHost) error {
-	configMutex.Lock()
-	defer configMutex.Unlock()
-
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return err
 	}
-
 	configPath := filepath.Join(homeDir, ".ssh", "config")
+	return UpdateSSHHostInFile(oldName, newHost, configPath)
+}
+
+// UpdateSSHHostInFile updates an existing SSH host configuration in a specific file
+func UpdateSSHHostInFile(oldName string, newHost SSHHost, configPath string) error {
+	configMutex.Lock()
+	defer configMutex.Unlock()
 
 	// Create backup before modification
 	if err := backupConfig(configPath); err != nil {
@@ -528,15 +564,18 @@ func UpdateSSHHost(oldName string, newHost SSHHost) error {
 
 // DeleteSSHHost removes an SSH host configuration from the config file
 func DeleteSSHHost(hostName string) error {
-	configMutex.Lock()
-	defer configMutex.Unlock()
-
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return err
 	}
-
 	configPath := filepath.Join(homeDir, ".ssh", "config")
+	return DeleteSSHHostFromFile(hostName, configPath)
+}
+
+// DeleteSSHHostFromFile deletes an SSH host from a specific config file
+func DeleteSSHHostFromFile(hostName, configPath string) error {
+	configMutex.Lock()
+	defer configMutex.Unlock()
 
 	// Create backup before modification
 	if err := backupConfig(configPath); err != nil {

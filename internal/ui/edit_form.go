@@ -18,12 +18,21 @@ type editFormModel struct {
 	originalName string
 	width        int
 	height       int
+	configFile   string
 }
 
 // NewEditForm creates a new edit form model
-func NewEditForm(hostName string, styles Styles, width, height int) (*editFormModel, error) {
+func NewEditForm(hostName string, styles Styles, width, height int, configFile string) (*editFormModel, error) {
 	// Get the existing host configuration
-	host, err := config.GetSSHHost(hostName)
+	var host *config.SSHHost
+	var err error
+
+	if configFile != "" {
+		host, err = config.GetSSHHostFromFile(hostName, configFile)
+	} else {
+		host, err = config.GetSSHHost(hostName)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -93,6 +102,7 @@ func NewEditForm(hostName string, styles Styles, width, height int) (*editFormMo
 		inputs:       inputs,
 		focused:      nameInput,
 		originalName: hostName,
+		configFile:   configFile,
 		styles:       styles,
 		width:        width,
 		height:       height,
@@ -250,7 +260,7 @@ func (m standaloneEditForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // RunEditForm provides backward compatibility for standalone edit form
 func RunEditForm(hostName string) error {
 	styles := NewStyles(80)
-	editForm, err := NewEditForm(hostName, styles, 80, 24)
+	editForm, err := NewEditForm(hostName, styles, 80, 24, "")
 	if err != nil {
 		return err
 	}
@@ -308,7 +318,12 @@ func (m *editFormModel) submitEditForm() tea.Cmd {
 		}
 
 		// Update the configuration
-		err := config.UpdateSSHHost(m.originalName, host)
+		var err error
+		if m.configFile != "" {
+			err = config.UpdateSSHHostInFile(m.originalName, host, m.configFile)
+		} else {
+			err = config.UpdateSSHHost(m.originalName, host)
+		}
 		return editFormSubmitMsg{hostname: name, err: err}
 	}
 }

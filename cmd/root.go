@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"sshm/internal/config"
 	"sshm/internal/ui"
@@ -13,6 +14,9 @@ import (
 
 // version will be set at build time via -ldflags
 var version = "dev"
+
+// configFile holds the path to the SSH config file
+var configFile string
 
 var rootCmd = &cobra.Command{
 	Use:   "sshm",
@@ -36,7 +40,15 @@ configured in your ~/.ssh/config file.`,
 
 func runInteractiveMode() {
 	// Parse SSH configurations
-	hosts, err := config.ParseSSHConfig()
+	var hosts []config.SSHHost
+	var err error
+
+	if configFile != "" {
+		hosts, err = config.ParseSSHConfigFile(configFile)
+	} else {
+		hosts, err = config.ParseSSHConfig()
+	}
+
 	if err != nil {
 		log.Fatalf("Error reading SSH config file: %v", err)
 	}
@@ -52,7 +64,11 @@ func runInteractiveMode() {
 				fmt.Printf("Error adding host: %v\n", err)
 			}
 			// After adding, try to reload hosts and continue if any exist
-			hosts, err = config.ParseSSHConfig()
+			if configFile != "" {
+				hosts, err = config.ParseSSHConfigFile(configFile)
+			} else {
+				hosts, err = config.ParseSSHConfig()
+			}
 			if err != nil || len(hosts) == 0 {
 				fmt.Println("No hosts available, exiting.")
 				os.Exit(1)
@@ -64,14 +80,22 @@ func runInteractiveMode() {
 	}
 
 	// Run the interactive TUI
-	if err := ui.RunInteractiveMode(hosts); err != nil {
+	if err := ui.RunInteractiveMode(hosts, configFile); err != nil {
 		log.Fatalf("Error running interactive mode: %v", err)
 	}
 }
 
 func connectToHost(hostName string) {
 	// Parse SSH configurations to verify host exists
-	hosts, err := config.ParseSSHConfig()
+	var hosts []config.SSHHost
+	var err error
+
+	if configFile != "" {
+		hosts, err = config.ParseSSHConfigFile(configFile)
+	} else {
+		hosts, err = config.ParseSSHConfig()
+	}
+
 	if err != nil {
 		log.Fatalf("Error reading SSH config file: %v", err)
 	}
@@ -93,9 +117,18 @@ func connectToHost(hostName string) {
 
 	// Connect to the host
 	fmt.Printf("Connecting to %s...\n", hostName)
+
+	// Build the SSH command with the appropriate config file
+	var sshCmd []string
+	if configFile != "" {
+		sshCmd = []string{"ssh", "-F", configFile, hostName}
+	} else {
+		sshCmd = []string{"ssh", hostName}
+	}
+
 	// Note: In a real implementation, you'd use exec.Command here
 	// For now, just print the command that would be executed
-	fmt.Printf("ssh %s\n", hostName)
+	fmt.Printf("%s\n", strings.Join(sshCmd, " "))
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -104,4 +137,9 @@ func Execute() {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func init() {
+	// Add the config file flag
+	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "", "SSH config file to use (default: ~/.ssh/config)")
 }

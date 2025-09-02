@@ -53,7 +53,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		} else {
 			// Success: refresh hosts and return to list view
-			hosts, err := config.ParseSSHConfig()
+			var hosts []config.SSHHost
+			var err error
+
+			if m.configFile != "" {
+				hosts, err = config.ParseSSHConfigFile(m.configFile)
+			} else {
+				hosts, err = config.ParseSSHConfig()
+			}
+
 			if err != nil {
 				return m, tea.Quit
 			}
@@ -82,7 +90,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		} else {
 			// Success: refresh hosts and return to list view
-			hosts, err := config.ParseSSHConfig()
+			var hosts []config.SSHHost
+			var err error
+
+			if m.configFile != "" {
+				hosts, err = config.ParseSSHConfigFile(m.configFile)
+			} else {
+				hosts, err = config.ParseSSHConfig()
+			}
+
 			if err != nil {
 				return m, tea.Quit
 			}
@@ -183,7 +199,12 @@ func (m Model) handleListViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		} else if m.deleteMode {
 			// Confirm deletion
-			err := config.DeleteSSHHost(m.deleteHost)
+			var err error
+			if m.configFile != "" {
+				err = config.DeleteSSHHostFromFile(m.deleteHost, m.configFile)
+			} else {
+				err = config.DeleteSSHHost(m.deleteHost)
+			}
 			if err != nil {
 				// Could display an error message here
 				m.deleteMode = false
@@ -192,8 +213,16 @@ func (m Model) handleListViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			// Refresh the hosts list
-			hosts, err := config.ParseSSHConfig()
-			if err != nil {
+			var hosts []config.SSHHost
+			var parseErr error
+
+			if m.configFile != "" {
+				hosts, parseErr = config.ParseSSHConfigFile(m.configFile)
+			} else {
+				hosts, parseErr = config.ParseSSHConfig()
+			}
+
+			if parseErr != nil {
 				// Could display an error message here
 				m.deleteMode = false
 				m.deleteHost = ""
@@ -222,7 +251,15 @@ func (m Model) handleListViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					}
 				}
 
-				return m, tea.ExecProcess(exec.Command("ssh", hostName), func(err error) tea.Msg {
+				// Build the SSH command with the appropriate config file
+				var sshCmd *exec.Cmd
+				if m.configFile != "" {
+					sshCmd = exec.Command("ssh", "-F", m.configFile, hostName)
+				} else {
+					sshCmd = exec.Command("ssh", hostName)
+				}
+
+				return m, tea.ExecProcess(sshCmd, func(err error) tea.Msg {
 					return tea.Quit()
 				})
 			}
@@ -233,7 +270,7 @@ func (m Model) handleListViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			selected := m.table.SelectedRow()
 			if len(selected) > 0 {
 				hostName := selected[0] // The hostname is in the first column
-				editForm, err := NewEditForm(hostName, m.styles, m.width, m.height)
+				editForm, err := NewEditForm(hostName, m.styles, m.width, m.height, m.configFile)
 				if err != nil {
 					// Handle error - could show in UI
 					return m, nil
@@ -246,7 +283,7 @@ func (m Model) handleListViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "a":
 		if !m.searchMode && !m.deleteMode {
 			// Add a new host
-			m.addForm = NewAddForm("", m.styles, m.width, m.height)
+			m.addForm = NewAddForm("", m.styles, m.width, m.height, m.configFile)
 			m.viewMode = ViewAdd
 			return m, textinput.Blink
 		}

@@ -14,7 +14,7 @@ import (
 )
 
 // NewModel creates a new TUI model with the given SSH hosts
-func NewModel(hosts []config.SSHHost) Model {
+func NewModel(hosts []config.SSHHost, configFile string) Model {
 	// Initialize the history manager
 	historyManager, err := history.NewHistoryManager()
 	if err != nil {
@@ -31,6 +31,7 @@ func NewModel(hosts []config.SSHHost) Model {
 		hosts:          hosts,
 		historyManager: historyManager,
 		sortMode:       SortByName,
+		configFile:     configFile,
 		styles:         styles,
 		width:          80,
 		height:         24,
@@ -138,8 +139,8 @@ func NewModel(hosts []config.SSHHost) Model {
 }
 
 // RunInteractiveMode starts the interactive TUI interface
-func RunInteractiveMode(hosts []config.SSHHost) error {
-	m := NewModel(hosts)
+func RunInteractiveMode(hosts []config.SSHHost, configFile string) error {
+	m := NewModel(hosts, configFile)
 
 	// Start the application in alt screen mode for clean output
 	p := tea.NewProgram(m, tea.WithAltScreen())

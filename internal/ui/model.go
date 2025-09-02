@@ -48,6 +48,7 @@ type Model struct {
 	deleteHost     string
 	historyManager *history.HistoryManager
 	sortMode       SortMode
+	configFile     string // Path to the SSH config file
 
 	// View management
 	viewMode ViewMode

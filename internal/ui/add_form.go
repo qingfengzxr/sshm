@@ -13,17 +13,18 @@ import (
 )
 
 type addFormModel struct {
-	inputs  []textinput.Model
-	focused int
-	err     string
-	styles  Styles
-	success bool
-	width   int
-	height  int
+	inputs     []textinput.Model
+	focused    int
+	err        string
+	styles     Styles
+	success    bool
+	width      int
+	height     int
+	configFile string
 }
 
 // NewAddForm creates a new add form model
-func NewAddForm(hostname string, styles Styles, width, height int) *addFormModel {
+func NewAddForm(hostname string, styles Styles, width, height int, configFile string) *addFormModel {
 	// Get current user for default
 	currentUser, _ := user.Current()
 	defaultUser := "root"
@@ -100,11 +101,12 @@ func NewAddForm(hostname string, styles Styles, width, height int) *addFormModel
 	inputs[tagsInput].Width = 50
 
 	return &addFormModel{
-		inputs:  inputs,
-		focused: nameInput,
-		styles:  styles,
-		width:   width,
-		height:  height,
+		inputs:     inputs,
+		focused:    nameInput,
+		styles:     styles,
+		width:      width,
+		height:     height,
+		configFile: configFile,
 	}
 }
 
@@ -270,7 +272,7 @@ func (m standaloneAddForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // RunAddForm provides backward compatibility for standalone add form
 func RunAddForm(hostname string) error {
 	styles := NewStyles(80)
-	addForm := NewAddForm(hostname, styles, 80, 24)
+	addForm := NewAddForm(hostname, styles, 80, 24, "")
 	m := standaloneAddForm{addForm}
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
@@ -327,7 +329,12 @@ func (m *addFormModel) submitForm() tea.Cmd {
 		}
 
 		// Add to config
-		err := config.AddSSHHost(host)
+		var err error
+		if m.configFile != "" {
+			err = config.AddSSHHostToFile(host, m.configFile)
+		} else {
+			err = config.AddSSHHost(host)
+		}
 		return addFormSubmitMsg{hostname: name, err: err}
 	}
 }
