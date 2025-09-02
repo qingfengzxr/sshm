@@ -57,17 +57,17 @@ func (s SortMode) String() string {
 }
 
 type Model struct {
-	table           table.Model
-	searchInput     textinput.Model
-	hosts           []config.SSHHost
-	filteredHosts   []config.SSHHost
-	searchMode      bool
-	deleteMode      bool
-	deleteHost      string
-	exitAction      string
-	exitHostName    string
-	historyManager  *history.HistoryManager
-	sortMode        SortMode
+	table          table.Model
+	searchInput    textinput.Model
+	hosts          []config.SSHHost
+	filteredHosts  []config.SSHHost
+	searchMode     bool
+	deleteMode     bool
+	deleteHost     string
+	exitAction     string
+	exitHostName   string
+	historyManager *history.HistoryManager
+	sortMode       SortMode
 }
 
 func (m Model) Init() tea.Cmd {
@@ -157,7 +157,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				selected := m.table.SelectedRow()
 				if len(selected) > 0 {
 					hostName := selected[0] // Host name is in the first column
-					
+
 					// Record the connection in history
 					if m.historyManager != nil {
 						err := m.historyManager.RecordConnection(hostName)
@@ -166,7 +166,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							fmt.Printf("Warning: Could not record connection history: %v\n", err)
 						}
 					}
-					
+
 					return m, tea.ExecProcess(exec.Command("ssh", hostName), func(err error) tea.Msg {
 						return tea.Quit()
 					})
@@ -510,7 +510,7 @@ func NewModel(hosts []config.SSHHost) Model {
 
 	// Calculate optimal width for the Tags column
 	tagsWidth := calculateTagsColumnWidth(sortedHosts)
-	
+
 	// Calculate optimal width for the Last Login column
 	lastLoginWidth := calculateLastLoginColumnWidth(sortedHosts, historyManager)
 

@@ -36,7 +36,7 @@ func NewHistoryManager() (*HistoryManager, error) {
 	}
 
 	historyPath := filepath.Join(homeDir, ".ssh", "sshm_history.json")
-	
+
 	hm := &HistoryManager{
 		historyPath: historyPath,
 		history:     &ConnectionHistory{Connections: make(map[string]ConnectionInfo)},
@@ -83,7 +83,7 @@ func (hm *HistoryManager) saveHistory() error {
 // RecordConnection records a new connection for the specified host
 func (hm *HistoryManager) RecordConnection(hostName string) error {
 	now := time.Now()
-	
+
 	if conn, exists := hm.history.Connections[hostName]; exists {
 		// Update existing connection
 		conn.LastConnect = now
@@ -130,7 +130,7 @@ func (hm *HistoryManager) SortHostsByLastUsed(hosts []config.SSHHost) []config.S
 		if existsI && existsJ {
 			return timeI.After(timeJ)
 		}
-		
+
 		// Hosts with history come before hosts without history
 		if existsI && !existsJ {
 			return true
@@ -138,7 +138,7 @@ func (hm *HistoryManager) SortHostsByLastUsed(hosts []config.SSHHost) []config.S
 		if !existsI && existsJ {
 			return false
 		}
-		
+
 		// If neither has history, sort alphabetically
 		return sorted[i].Name < sorted[j].Name
 	})
@@ -159,7 +159,7 @@ func (hm *HistoryManager) SortHostsByMostUsed(hosts []config.SSHHost) []config.S
 		if countI != countJ {
 			return countI > countJ
 		}
-		
+
 		// If counts are equal, sort by most recent
 		timeI, existsI := hm.GetLastConnectionTime(sorted[i].Name)
 		timeJ, existsJ := hm.GetLastConnectionTime(sorted[j].Name)
@@ -167,7 +167,7 @@ func (hm *HistoryManager) SortHostsByMostUsed(hosts []config.SSHHost) []config.S
 		if existsI && existsJ {
 			return timeI.After(timeJ)
 		}
-		
+
 		// If neither has history, sort alphabetically
 		return sorted[i].Name < sorted[j].Name
 	})
