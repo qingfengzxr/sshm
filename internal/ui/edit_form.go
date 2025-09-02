@@ -7,23 +7,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-)
-
-var (
-	titleStyleEdit = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFFDF5")).
-			Background(lipgloss.Color("#25A065")).
-			Padding(0, 1)
-
-	fieldStyleEdit = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#04B575"))
-
-	errorStyleEdit = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FF0000"))
-
-	helpStyleEdit = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#626262"))
 )
 
 type editFormModel struct {
@@ -31,14 +14,18 @@ type editFormModel struct {
 	focused      int
 	err          string
 	success      bool
+	styles       Styles
 	originalName string
+	width        int
+	height       int
 }
 
-func RunEditForm(hostName string) error {
+// NewEditForm creates a new edit form model
+func NewEditForm(hostName string, styles Styles, width, height int) (*editFormModel, error) {
 	// Get the existing host configuration
 	host, err := config.GetSSHHost(hostName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	inputs := make([]textinput.Model, 8)
@@ -102,30 +89,42 @@ func RunEditForm(hostName string) error {
 		inputs[tagsInput].SetValue(strings.Join(host.Tags, ", "))
 	}
 
-	m := editFormModel{
+	return &editFormModel{
 		inputs:       inputs,
 		focused:      nameInput,
 		originalName: hostName,
-	}
-
-	// Open in separate window like add form
-	p := tea.NewProgram(&m, tea.WithAltScreen())
-	_, err = p.Run()
-	return err
+		styles:       styles,
+		width:        width,
+		height:       height,
+	}, nil
 }
+
+// Messages for communication with parent model
+type editFormSubmitMsg struct {
+	hostname string
+	err      error
+}
+
+type editFormCancelMsg struct{}
 
 func (m *editFormModel) Init() tea.Cmd {
 	return textinput.Blink
 }
 
-func (m *editFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *editFormModel) Update(msg tea.Msg) (*editFormModel, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		m.styles = NewStyles(m.width)
+		return m, nil
+
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "esc":
-			return m, tea.Quit
+			return m, func() tea.Msg { return editFormCancelMsg{} }
 
 		case "ctrl+enter":
 			// Allow submission from any field with Ctrl+Enter
@@ -163,14 +162,15 @@ func (m *editFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(cmds...)
 		}
 
-	case editResult:
+	case editFormSubmitMsg:
 		if msg.err != nil {
 			m.err = msg.err.Error()
 		} else {
 			m.success = true
 			m.err = ""
-			return m, tea.Quit
+			// Don't quit here, let parent handle the success
 		}
+		return m, nil
 	}
 
 	// Update inputs
@@ -190,7 +190,7 @@ func (m *editFormModel) View() string {
 
 	var b strings.Builder
 
-	b.WriteString(titleStyleEdit.Render("Edit SSH Host Configuration"))
+	b.WriteString(m.styles.FormTitle.Render("Edit SSH Host Configuration"))
 	b.WriteString("\n\n")
 
 	fields := []string{
@@ -205,27 +205,60 @@ func (m *editFormModel) View() string {
 	}
 
 	for i, field := range fields {
-		b.WriteString(fieldStyleEdit.Render(field))
+		b.WriteString(m.styles.FormField.Render(field))
 		b.WriteString("\n")
 		b.WriteString(m.inputs[i].View())
 		b.WriteString("\n\n")
 	}
 
 	if m.err != "" {
-		b.WriteString(errorStyleEdit.Render("Error: " + m.err))
+		b.WriteString(m.styles.Error.Render("Error: " + m.err))
 		b.WriteString("\n\n")
 	}
 
-	b.WriteString(helpStyleEdit.Render("Tab/Shift+Tab: navigate • Enter on last field: submit • Ctrl+Enter: submit • Ctrl+C/Esc: cancel"))
+	b.WriteString(m.styles.FormHelp.Render("Tab/Shift+Tab: navigate • Enter on last field: submit • Ctrl+Enter: submit • Ctrl+C/Esc: cancel"))
 	b.WriteString("\n")
-	b.WriteString(helpStyleEdit.Render("* Required fields"))
+	b.WriteString(m.styles.FormHelp.Render("* Required fields"))
 
 	return b.String()
 }
 
-type editResult struct {
-	hostname string
-	err      error
+// Standalone wrapper for edit form
+type standaloneEditForm struct {
+	*editFormModel
+}
+
+func (m standaloneEditForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case editFormSubmitMsg:
+		if msg.err != nil {
+			m.editFormModel.err = msg.err.Error()
+		} else {
+			m.editFormModel.success = true
+			return m, tea.Quit
+		}
+		return m, nil
+	case editFormCancelMsg:
+		return m, tea.Quit
+	}
+
+	newForm, cmd := m.editFormModel.Update(msg)
+	m.editFormModel = newForm
+	return m, cmd
+}
+
+// RunEditForm provides backward compatibility for standalone edit form
+func RunEditForm(hostName string) error {
+	styles := NewStyles(80)
+	editForm, err := NewEditForm(hostName, styles, 80, 24)
+	if err != nil {
+		return err
+	}
+	m := standaloneEditForm{editForm}
+
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	_, err = p.Run()
+	return err
 }
 
 func (m *editFormModel) submitEditForm() tea.Cmd {
@@ -247,7 +280,7 @@ func (m *editFormModel) submitEditForm() tea.Cmd {
 
 		// Validate all fields
 		if err := validation.ValidateHost(name, hostname, port, identity); err != nil {
-			return editResult{err: err}
+			return editFormSubmitMsg{err: err}
 		}
 
 		// Parse tags
@@ -276,6 +309,6 @@ func (m *editFormModel) submitEditForm() tea.Cmd {
 
 		// Update the configuration
 		err := config.UpdateSSHHost(m.originalName, host)
-		return editResult{hostname: name, err: err}
+		return editFormSubmitMsg{hostname: name, err: err}
 	}
 }

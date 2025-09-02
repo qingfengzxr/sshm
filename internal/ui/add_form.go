@@ -10,44 +10,20 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-)
-
-var (
-	titleStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFFDF5")).
-			Background(lipgloss.Color("#25A065")).
-			Padding(0, 1)
-
-	fieldStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#04B575"))
-
-	errorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FF0000"))
-
-	helpStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#626262"))
 )
 
 type addFormModel struct {
 	inputs  []textinput.Model
 	focused int
 	err     string
+	styles  Styles
 	success bool
+	width   int
+	height  int
 }
 
-const (
-	nameInput = iota
-	hostnameInput
-	userInput
-	portInput
-	identityInput
-	proxyJumpInput
-	optionsInput
-	tagsInput
-)
-
-func RunAddForm(hostname string) error {
+// NewAddForm creates a new add form model
+func NewAddForm(hostname string, styles Styles, width, height int) *addFormModel {
 	// Get current user for default
 	currentUser, _ := user.Current()
 	defaultUser := "root"
@@ -123,28 +99,52 @@ func RunAddForm(hostname string) error {
 	inputs[tagsInput].CharLimit = 200
 	inputs[tagsInput].Width = 50
 
-	m := addFormModel{
+	return &addFormModel{
 		inputs:  inputs,
 		focused: nameInput,
+		styles:  styles,
+		width:   width,
+		height:  height,
 	}
-
-	p := tea.NewProgram(&m, tea.WithAltScreen())
-	_, err := p.Run()
-	return err
 }
+
+const (
+	nameInput = iota
+	hostnameInput
+	userInput
+	portInput
+	identityInput
+	proxyJumpInput
+	optionsInput
+	tagsInput
+)
+
+// Messages for communication with parent model
+type addFormSubmitMsg struct {
+	hostname string
+	err      error
+}
+
+type addFormCancelMsg struct{}
 
 func (m *addFormModel) Init() tea.Cmd {
 	return textinput.Blink
 }
 
-func (m *addFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *addFormModel) Update(msg tea.Msg) (*addFormModel, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		m.styles = NewStyles(m.width)
+		return m, nil
+
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "esc":
-			return m, tea.Quit
+			return m, func() tea.Msg { return addFormCancelMsg{} }
 
 		case "ctrl+enter":
 			// Allow submission from any field with Ctrl+Enter
@@ -182,14 +182,15 @@ func (m *addFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(cmds...)
 		}
 
-	case submitResult:
+	case addFormSubmitMsg:
 		if msg.err != nil {
 			m.err = msg.err.Error()
 		} else {
 			m.success = true
 			m.err = ""
-			return m, tea.Quit
+			// Don't quit here, let parent handle the success
 		}
+		return m, nil
 	}
 
 	// Update inputs
@@ -209,7 +210,7 @@ func (m *addFormModel) View() string {
 
 	var b strings.Builder
 
-	b.WriteString(titleStyle.Render("Add SSH Host Configuration"))
+	b.WriteString(m.styles.FormTitle.Render("Add SSH Host Configuration"))
 	b.WriteString("\n\n")
 
 	fields := []string{
@@ -224,27 +225,57 @@ func (m *addFormModel) View() string {
 	}
 
 	for i, field := range fields {
-		b.WriteString(fieldStyle.Render(field))
+		b.WriteString(m.styles.FormField.Render(field))
 		b.WriteString("\n")
 		b.WriteString(m.inputs[i].View())
 		b.WriteString("\n\n")
 	}
 
 	if m.err != "" {
-		b.WriteString(errorStyle.Render("Error: " + m.err))
+		b.WriteString(m.styles.Error.Render("Error: " + m.err))
 		b.WriteString("\n\n")
 	}
 
-	b.WriteString(helpStyle.Render("Tab/Shift+Tab: navigate • Enter on last field: submit • Ctrl+Enter: submit • Ctrl+C/Esc: cancel"))
+	b.WriteString(m.styles.FormHelp.Render("Tab/Shift+Tab: navigate • Enter on last field: submit • Ctrl+Enter: submit • Ctrl+C/Esc: cancel"))
 	b.WriteString("\n")
-	b.WriteString(helpStyle.Render("* Required fields"))
+	b.WriteString(m.styles.FormHelp.Render("* Required fields"))
 
 	return b.String()
 }
 
-type submitResult struct {
-	hostname string
-	err      error
+// Standalone wrapper for add form
+type standaloneAddForm struct {
+	*addFormModel
+}
+
+func (m standaloneAddForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case addFormSubmitMsg:
+		if msg.err != nil {
+			m.addFormModel.err = msg.err.Error()
+		} else {
+			m.addFormModel.success = true
+			return m, tea.Quit
+		}
+		return m, nil
+	case addFormCancelMsg:
+		return m, tea.Quit
+	}
+
+	newForm, cmd := m.addFormModel.Update(msg)
+	m.addFormModel = newForm
+	return m, cmd
+}
+
+// RunAddForm provides backward compatibility for standalone add form
+func RunAddForm(hostname string) error {
+	styles := NewStyles(80)
+	addForm := NewAddForm(hostname, styles, 80, 24)
+	m := standaloneAddForm{addForm}
+
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	_, err := p.Run()
+	return err
 }
 
 func (m *addFormModel) submitForm() tea.Cmd {
@@ -269,7 +300,7 @@ func (m *addFormModel) submitForm() tea.Cmd {
 
 		// Validate all fields
 		if err := validation.ValidateHost(name, hostname, port, identity); err != nil {
-			return submitResult{err: err}
+			return addFormSubmitMsg{err: err}
 		}
 
 		tagsStr := strings.TrimSpace(m.inputs[tagsInput].Value())
@@ -297,6 +328,6 @@ func (m *addFormModel) submitForm() tea.Cmd {
 
 		// Add to config
 		err := config.AddSSHHost(host)
-		return submitResult{hostname: name, err: err}
+		return addFormSubmitMsg{hostname: name, err: err}
 	}
 }
