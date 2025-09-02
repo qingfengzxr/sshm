@@ -5,8 +5,10 @@ import (
 	"os/exec"
 	"sort"
 	"strings"
+	"time"
 
 	"sshm/internal/config"
+	"sshm/internal/history"
 
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -36,16 +38,36 @@ const asciiTitle = `
 |_____|_____|__|__|_|_|_|
 `
 
+type SortMode int
+
+const (
+	SortByName SortMode = iota
+	SortByLastUsed
+)
+
+func (s SortMode) String() string {
+	switch s {
+	case SortByName:
+		return "Name (A-Z)"
+	case SortByLastUsed:
+		return "Last Login"
+	default:
+		return "Name (A-Z)"
+	}
+}
+
 type Model struct {
-	table         table.Model
-	searchInput   textinput.Model
-	hosts         []config.SSHHost
-	filteredHosts []config.SSHHost
-	searchMode    bool
-	deleteMode    bool
-	deleteHost    string
-	exitAction    string
-	exitHostName  string
+	table           table.Model
+	searchInput     textinput.Model
+	hosts           []config.SSHHost
+	filteredHosts   []config.SSHHost
+	searchMode      bool
+	deleteMode      bool
+	deleteHost      string
+	exitAction      string
+	exitHostName    string
+	historyManager  *history.HistoryManager
+	sortMode        SortMode
 }
 
 func (m Model) Init() tea.Cmd {
@@ -135,6 +157,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				selected := m.table.SelectedRow()
 				if len(selected) > 0 {
 					hostName := selected[0] // Host name is in the first column
+					
+					// Record the connection in history
+					if m.historyManager != nil {
+						err := m.historyManager.RecordConnection(hostName)
+						if err != nil {
+							// Log error but don't prevent connection
+							fmt.Printf("Warning: Could not record connection history: %v\n", err)
+						}
+					}
+					
 					return m, tea.ExecProcess(exec.Command("ssh", hostName), func(err error) tea.Msg {
 						return tea.Quit()
 					})
@@ -170,23 +202,64 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, nil
 				}
 			}
+		case "s":
+			if !m.searchMode && !m.deleteMode {
+				// Cycle through sort modes (only 2 modes now)
+				m.sortMode = (m.sortMode + 1) % 2
+				// Re-apply current filter with new sort mode
+				if m.searchInput.Value() != "" {
+					m.filteredHosts = m.filterHosts(m.searchInput.Value())
+				} else {
+					m.filteredHosts = m.sortHosts(m.hosts)
+				}
+				m.updateTableRows()
+				return m, nil
+			}
+		case "r":
+			if !m.searchMode && !m.deleteMode {
+				// Switch to sort by recent (last used)
+				m.sortMode = SortByLastUsed
+				// Re-apply current filter with new sort mode
+				if m.searchInput.Value() != "" {
+					m.filteredHosts = m.filterHosts(m.searchInput.Value())
+				} else {
+					m.filteredHosts = m.sortHosts(m.hosts)
+				}
+				m.updateTableRows()
+				return m, nil
+			}
+		case "n":
+			if !m.searchMode && !m.deleteMode {
+				// Switch to sort by name
+				m.sortMode = SortByName
+				// Re-apply current filter with new sort mode
+				if m.searchInput.Value() != "" {
+					m.filteredHosts = m.filterHosts(m.searchInput.Value())
+				} else {
+					m.filteredHosts = m.sortHosts(m.hosts)
+				}
+				m.updateTableRows()
+				return m, nil
+			}
 		}
 	}
 
 	// Update components based on mode
 	if m.searchMode {
+		oldValue := m.searchInput.Value()
 		m.searchInput, cmd = m.searchInput.Update(msg)
+		// Only update filtered hosts if search value changed
+		if m.searchInput.Value() != oldValue {
+			if m.searchInput.Value() != "" {
+				m.filteredHosts = m.filterHosts(m.searchInput.Value())
+			} else {
+				m.filteredHosts = m.sortHosts(m.hosts)
+			}
+			m.updateTableRows()
+		}
 	} else {
 		m.table, cmd = m.table.Update(msg)
 	}
-
-	// Always filter hosts when search input changes (regardless of mode)
-	if m.searchInput.Value() != "" {
-		m.filteredHosts = m.filterHosts(m.searchInput.Value())
-	} else {
-		m.filteredHosts = m.hosts
-	}
-	m.updateTableRows()
 
 	return m, cmd
 }
@@ -204,10 +277,16 @@ func (m Model) View() string {
 	// Add search bar (always visible) with appropriate style based on focus
 	searchPrompt := "Search (/ to focus, Tab to switch): "
 	if m.searchMode {
-		view.WriteString(searchStyleFocused.Render(searchPrompt+m.searchInput.View()) + "\n\n")
+		view.WriteString(searchStyleFocused.Render(searchPrompt+m.searchInput.View()) + "\n")
 	} else {
-		view.WriteString(searchStyleUnfocused.Render(searchPrompt+m.searchInput.View()) + "\n\n")
+		view.WriteString(searchStyleUnfocused.Render(searchPrompt+m.searchInput.View()) + "\n")
 	}
+
+	// Add sort mode indicator
+	sortInfo := fmt.Sprintf("Sort: %s", m.sortMode.String())
+	view.WriteString(lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Render(sortInfo) + "\n\n")
 
 	// Add table with appropriate style based on focus
 	if m.searchMode {
@@ -226,12 +305,29 @@ func (m Model) View() string {
 
 	// Add help text
 	if !m.searchMode {
-		view.WriteString("\nUse ↑/↓ to navigate • Enter to connect • (a)dd • (e)dit • (d)elete • / to search • Tab to switch • q/ESC to quit")
+		view.WriteString("\nUse ↑/↓ to navigate • Enter to connect • (a)dd • (e)dit • (d)elete • / to search • Tab to switch")
+		view.WriteString("\nSort: (s)witch • (r)ecent • (n)ame • q/ESC to quit")
 	} else {
 		view.WriteString("\nType to filter hosts • Enter to validate search • Tab to switch to table • ESC to quit")
 	}
 
 	return view.String()
+}
+
+// sortHosts sorts hosts based on the current sort mode
+func (m Model) sortHosts(hosts []config.SSHHost) []config.SSHHost {
+	if m.historyManager == nil {
+		return sortHostsByName(hosts)
+	}
+
+	switch m.sortMode {
+	case SortByLastUsed:
+		return m.historyManager.SortHostsByLastUsed(hosts)
+	case SortByName:
+		fallthrough
+	default:
+		return sortHostsByName(hosts)
+	}
 }
 
 // sortHostsByName sorts a slice of SSH hosts alphabetically by name
@@ -269,7 +365,7 @@ func calculateNameColumnWidth(hosts []config.SSHHost) int {
 }
 
 // calculateTagsColumnWidth calculates the optimal width for the Tags column
-// based on the longest tags string, with a minimum of 8 and maximum of 50 characters
+// based on the longest tags string, with a minimum of 8 and maximum of 40 characters
 func calculateTagsColumnWidth(hosts []config.SSHHost) int {
 	maxLength := 8 // Minimum width to accommodate the "Tags" header
 
@@ -294,17 +390,114 @@ func calculateTagsColumnWidth(hosts []config.SSHHost) int {
 	maxLength += 2
 
 	// Cap the maximum width to avoid extremely wide columns
-	if maxLength > 50 {
-		maxLength = 50
+	if maxLength > 40 {
+		maxLength = 40
 	}
 
 	return maxLength
 }
 
+// formatTimeAgo formats a time into a human-readable "time ago" string
+func formatTimeAgo(t time.Time) string {
+	now := time.Now()
+	duration := now.Sub(t)
+
+	switch {
+	case duration < time.Minute:
+		seconds := int(duration.Seconds())
+		if seconds <= 1 {
+			return "1 second ago"
+		}
+		return fmt.Sprintf("%d seconds ago", seconds)
+	case duration < time.Hour:
+		minutes := int(duration.Minutes())
+		if minutes == 1 {
+			return "1 minute ago"
+		}
+		return fmt.Sprintf("%d minutes ago", minutes)
+	case duration < 24*time.Hour:
+		hours := int(duration.Hours())
+		if hours == 1 {
+			return "1 hour ago"
+		}
+		return fmt.Sprintf("%d hours ago", hours)
+	case duration < 7*24*time.Hour:
+		days := int(duration.Hours() / 24)
+		if days == 1 {
+			return "1 day ago"
+		}
+		return fmt.Sprintf("%d days ago", days)
+	case duration < 30*24*time.Hour:
+		weeks := int(duration.Hours() / (24 * 7))
+		if weeks == 1 {
+			return "1 week ago"
+		}
+		return fmt.Sprintf("%d weeks ago", weeks)
+	case duration < 365*24*time.Hour:
+		months := int(duration.Hours() / (24 * 30))
+		if months == 1 {
+			return "1 month ago"
+		}
+		return fmt.Sprintf("%d months ago", months)
+	default:
+		years := int(duration.Hours() / (24 * 365))
+		if years == 1 {
+			return "1 year ago"
+		}
+		return fmt.Sprintf("%d years ago", years)
+	}
+}
+
+// calculateLastLoginColumnWidth calculates the optimal width for the Last Login column
+// based on the longest time format, with a minimum of 12 and maximum of 20 characters
+func calculateLastLoginColumnWidth(hosts []config.SSHHost, historyManager *history.HistoryManager) int {
+	maxLength := 12 // Minimum width to accommodate the "Last Login" header
+
+	if historyManager != nil {
+		for _, host := range hosts {
+			if lastConnect, exists := historyManager.GetLastConnectionTime(host.Name); exists {
+				timeStr := formatTimeAgo(lastConnect)
+				if len(timeStr) > maxLength {
+					maxLength = len(timeStr)
+				}
+			}
+		}
+	}
+
+	// Add some padding (2 characters) for better visual spacing
+	maxLength += 2
+
+	// Cap the maximum width to avoid extremely wide columns
+	if maxLength > 20 {
+		maxLength = 20
+	}
+
+	return maxLength
+}
+
+// calculateInfoColumnWidth calculates the optimal width for the combined Info column
+// based on the longest combined tags and history string, with a minimum of 12 and maximum of 60 characters
+// enterEditMode initializes edit mode for a specific host
+
 // NewModel creates a new TUI model with the given SSH hosts
 func NewModel(hosts []config.SSHHost) Model {
-	// Sort hosts alphabetically by name
-	sortedHosts := sortHostsByName(hosts)
+	// Initialize history manager
+	historyManager, err := history.NewHistoryManager()
+	if err != nil {
+		// Log error but continue without history functionality
+		fmt.Printf("Warning: Could not initialize history manager: %v\n", err)
+		historyManager = nil
+	}
+
+	// Create the model with default sorting by name
+	m := Model{
+		hosts:          hosts,
+		historyManager: historyManager,
+		sortMode:       SortByName,
+	}
+
+	// Sort hosts based on default sort mode
+	sortedHosts := m.sortHosts(hosts)
 
 	// Create search input
 	ti := textinput.New()
@@ -317,6 +510,9 @@ func NewModel(hosts []config.SSHHost) Model {
 
 	// Calculate optimal width for the Tags column
 	tagsWidth := calculateTagsColumnWidth(sortedHosts)
+	
+	// Calculate optimal width for the Last Login column
+	lastLoginWidth := calculateLastLoginColumnWidth(sortedHosts, historyManager)
 
 	// Create table columns
 	columns := []table.Column{
@@ -325,6 +521,7 @@ func NewModel(hosts []config.SSHHost) Model {
 		{Title: "User", Width: 12},
 		{Title: "Port", Width: 6},
 		{Title: "Tags", Width: tagsWidth},
+		{Title: "Last Login", Width: lastLoginWidth},
 	}
 
 	// Convert hosts to table rows
@@ -341,12 +538,21 @@ func NewModel(hosts []config.SSHHost) Model {
 			tagsStr = strings.Join(formattedTags, " ")
 		}
 
+		// Format last login info
+		var lastLoginStr string
+		if historyManager != nil {
+			if lastConnect, exists := historyManager.GetLastConnectionTime(host.Name); exists {
+				lastLoginStr = formatTimeAgo(lastConnect)
+			}
+		}
+
 		rows = append(rows, table.Row{
 			host.Name,
 			host.Hostname,
 			host.User,
 			host.Port,
 			tagsStr,
+			lastLoginStr,
 		})
 	}
 
@@ -380,13 +586,12 @@ func NewModel(hosts []config.SSHHost) Model {
 		Bold(false)
 	t.SetStyles(s)
 
-	return Model{
-		table:         t,
-		searchInput:   ti,
-		hosts:         sortedHosts,
-		filteredHosts: sortedHosts,
-		searchMode:    false,
-	}
+	// Update the model with the table and other properties
+	m.table = t
+	m.searchInput = ti
+	m.filteredHosts = sortedHosts
+
+	return m
 }
 
 // RunInteractiveMode starts the interactive TUI
@@ -449,36 +654,37 @@ func RunInteractiveMode(hosts []config.SSHHost) error {
 
 // filterHosts filters hosts based on search query (name or tags)
 func (m Model) filterHosts(query string) []config.SSHHost {
-	if query == "" {
-		return sortHostsByName(m.hosts)
-	}
-
-	query = strings.ToLower(query)
 	var filtered []config.SSHHost
 
-	for _, host := range m.hosts {
-		// Check host name
-		if strings.Contains(strings.ToLower(host.Name), query) {
-			filtered = append(filtered, host)
-			continue
-		}
+	if query == "" {
+		filtered = m.hosts
+	} else {
+		query = strings.ToLower(query)
 
-		// Check hostname
-		if strings.Contains(strings.ToLower(host.Hostname), query) {
-			filtered = append(filtered, host)
-			continue
-		}
-
-		// Check tags
-		for _, tag := range host.Tags {
-			if strings.Contains(strings.ToLower(tag), query) {
+		for _, host := range m.hosts {
+			// Check host name
+			if strings.Contains(strings.ToLower(host.Name), query) {
 				filtered = append(filtered, host)
-				break
+				continue
+			}
+
+			// Check hostname
+			if strings.Contains(strings.ToLower(host.Hostname), query) {
+				filtered = append(filtered, host)
+				continue
+			}
+
+			// Check tags
+			for _, tag := range host.Tags {
+				if strings.Contains(strings.ToLower(tag), query) {
+					filtered = append(filtered, host)
+					break
+				}
 			}
 		}
 	}
 
-	return sortHostsByName(filtered)
+	return m.sortHosts(filtered)
 }
 
 // updateTableRows updates the table with filtered hosts
@@ -489,10 +695,7 @@ func (m *Model) updateTableRows() {
 		hostsToShow = m.hosts
 	}
 
-	// Sort hosts alphabetically by name
-	sortedHosts := sortHostsByName(hostsToShow)
-
-	for _, host := range sortedHosts {
+	for _, host := range hostsToShow {
 		// Format tags for display
 		var tagsStr string
 		if len(host.Tags) > 0 {
@@ -504,12 +707,21 @@ func (m *Model) updateTableRows() {
 			tagsStr = strings.Join(formattedTags, " ")
 		}
 
+		// Format last login info
+		var lastLoginStr string
+		if m.historyManager != nil {
+			if lastConnect, exists := m.historyManager.GetLastConnectionTime(host.Name); exists {
+				lastLoginStr = formatTimeAgo(lastConnect)
+			}
+		}
+
 		rows = append(rows, table.Row{
 			host.Name,
 			host.Hostname,
 			host.User,
 			host.Port,
 			tagsStr,
+			lastLoginStr,
 		})
 	}
 
