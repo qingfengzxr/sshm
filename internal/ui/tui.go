@@ -99,21 +99,12 @@ func NewModel(hosts []config.SSHHost, configFile string) Model {
 		})
 	}
 
-	// Determine table height: 1 (header) + number of hosts (max 10)
-	hostCount := len(rows)
-	tableHeight := 1 // header
-	if hostCount < 10 {
-		tableHeight += hostCount
-	} else {
-		tableHeight += 10
-	}
-
-	// Create the table
+	// Create the table with initial height (will be updated on first WindowSizeMsg)
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),
 		table.WithFocused(true),
-		table.WithHeight(tableHeight),
+		table.WithHeight(10), // Initial height, will be recalculated dynamically
 	)
 
 	// Style the table
@@ -134,6 +125,9 @@ func NewModel(hosts []config.SSHHost, configFile string) Model {
 
 	// Initialize table styles based on initial focus state
 	m.updateTableStyles()
+
+	// The table height will be properly set on the first WindowSizeMsg
+	// when m.ready becomes true and actual terminal dimensions are known
 
 	return m
 }

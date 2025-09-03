@@ -130,4 +130,119 @@ func (m *Model) updateTableRows() {
 	}
 
 	m.table.SetRows(rows)
+
+	// Update table height and columns based on current terminal size
+	m.updateTableHeight()
+	m.updateTableColumns()
+}
+
+// updateTableHeight dynamically adjusts table height based on terminal size
+func (m *Model) updateTableHeight() {
+	if !m.ready {
+		return
+	}
+
+	// Calculate dynamic table height based on terminal size
+	// Layout breakdown:
+	// - ASCII title: 5 lines (1 empty + 4 text lines)
+	// - Search bar: 1 line
+	// - Sort info: 1 line
+	// - Help text: 2 lines (multi-line text)
+	// - App margins/spacing: 2 lines
+	// Total reserved: 11 lines, mais réduisons à 7 pour forcer plus d'espace
+	reservedHeight := 7 // Réduction agressive pour tester
+	availableHeight := m.height - reservedHeight
+	hostCount := len(m.table.Rows())
+
+	// Minimum height should be at least 5 rows for usability
+	minTableHeight := 6 // 1 header + 5 data rows
+	maxTableHeight := availableHeight
+	if maxTableHeight < minTableHeight {
+		maxTableHeight = minTableHeight
+	}
+
+	tableHeight := 1 // header
+	dataRowsNeeded := hostCount
+	maxDataRows := maxTableHeight - 1 // subtract 1 for header
+
+	if dataRowsNeeded <= maxDataRows {
+		// We have enough space for all hosts
+		tableHeight += dataRowsNeeded
+	} else {
+		// We need to limit to available space
+		tableHeight += maxDataRows
+	}
+
+	// FORCE: Ajoutons une ligne supplémentaire pour résoudre le problème
+	tableHeight += 1
+
+	// Update table height
+	m.table.SetHeight(tableHeight)
+}
+
+// updateTableColumns dynamically adjusts table column widths based on terminal size
+func (m *Model) updateTableColumns() {
+	if !m.ready {
+		return
+	}
+
+	hostsToShow := m.filteredHosts
+	if hostsToShow == nil {
+		hostsToShow = m.hosts
+	}
+
+	// Calculate base column widths
+	nameWidth := calculateNameColumnWidth(hostsToShow)
+	tagsWidth := calculateTagsColumnWidth(hostsToShow)
+	lastLoginWidth := calculateLastLoginColumnWidth(hostsToShow, m.historyManager)
+
+	// Fixed column widths
+	hostnameWidth := 25
+	userWidth := 12
+	portWidth := 6
+
+	// Calculate total width needed for all columns
+	totalFixedWidth := hostnameWidth + userWidth + portWidth
+	totalVariableWidth := nameWidth + tagsWidth + lastLoginWidth
+	totalWidth := totalFixedWidth + totalVariableWidth
+
+	// Available width (accounting for table borders and padding)
+	availableWidth := m.width - 4 // 4 chars for borders and padding
+
+	// If the table is too wide, scale down the variable columns proportionally
+	if totalWidth > availableWidth {
+		excessWidth := totalWidth - availableWidth
+		variableColumnsWidth := totalVariableWidth
+
+		if variableColumnsWidth > 0 {
+			// Reduce variable columns proportionally
+			nameReduction := (excessWidth * nameWidth) / variableColumnsWidth
+			tagsReduction := (excessWidth * tagsWidth) / variableColumnsWidth
+			lastLoginReduction := excessWidth - nameReduction - tagsReduction
+
+			nameWidth = max(8, nameWidth-nameReduction)
+			tagsWidth = max(8, tagsWidth-tagsReduction)
+			lastLoginWidth = max(10, lastLoginWidth-lastLoginReduction)
+		}
+	}
+
+	// Create new columns with updated widths
+	columns := []table.Column{
+		{Title: "Name", Width: nameWidth},
+		{Title: "Hostname", Width: hostnameWidth},
+		{Title: "User", Width: userWidth},
+		{Title: "Port", Width: portWidth},
+		{Title: "Tags", Width: tagsWidth},
+		{Title: "Last Login", Width: lastLoginWidth},
+	}
+
+	m.table.SetColumns(columns)
+}
+
+// max returns the maximum of two integers
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }

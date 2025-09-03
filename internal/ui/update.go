@@ -31,6 +31,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.styles = NewStyles(m.width)
 		m.ready = true
 
+		// Update table height and columns based on new window size
+		m.updateTableHeight()
+		m.updateTableColumns()
+
 		// Update sub-forms if they exist
 		if m.addForm != nil {
 			m.addForm.width = m.width

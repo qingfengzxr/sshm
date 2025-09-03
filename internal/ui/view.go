@@ -39,7 +39,7 @@ func (m Model) renderListView() string {
 	components = append(components, m.styles.Header.Render(asciiTitle))
 
 	// Add the search bar with the appropriate style based on focus
-	searchPrompt := "Search (/ to focus, Tab to switch): "
+	searchPrompt := "Search (/ to focus): "
 	if m.searchMode {
 		components = append(components, m.styles.SearchFocused.Render(searchPrompt+m.searchInput.View()))
 	} else {
