@@ -16,7 +16,11 @@
 SSHM is a beautiful command-line tool that transforms how you manage and connect to your SSH hosts. Built with Go and featuring an intuitive TUI interface, it makes SSH connection management effortless and enjoyable.
 
 <p align="center">
-    <img src="images/sshm.gif" alt="Demo SSHM Terminal" width="600" />
+    <a href="images/sshm.gif" target="_blank">
+        <img src="images/sshm.gif" alt="Demo SSHM Terminal" width="800" />
+    </a>
+    <br>
+    <em>🖱️ Click on the image to view in full size</em>
 </p>
 
 ## ✨ Features
@@ -28,6 +32,7 @@ SSHM is a beautiful command-line tool that transforms how you manage and connect
 - **🏷️ Tag Support** - Organize your hosts with custom tags for better categorization
 - **🔍 Smart Search** - Find hosts quickly with built-in filtering and search
 - **🔒 Secure** - Works directly with your existing `~/.ssh/config` file
+- **📁 Custom Config Support** - Use any SSH configuration file with the `-c` flag
 - **⚙️ SSH Options Support** - Add any SSH configuration option through intuitive forms
 - **🔄 Automatic Conversion** - Seamlessly converts between command-line and config formats
 
@@ -85,6 +90,14 @@ sshm
 - `q` - Quit
 - `/` - Search/filter hosts
 
+**Sorting & Filtering:**
+- `s` - Switch between sorting modes (name ↔ last login)
+- `n` - Sort by **name** (alphabetical)
+- `r` - Sort by **recent** (last login time)
+- `Tab` - Cycle between filtering modes
+- Filter by **name** (default) - Search through host names
+- Filter by **last login** - Sort and filter by most recently used connections
+
 The interactive forms will guide you through configuration:
 - **Hostname/IP** - Server address
 - **Username** - SSH user
@@ -102,20 +115,42 @@ SSHM provides both command-line operations and an interactive TUI interface:
 # Launch interactive TUI mode for browsing and connecting to hosts
 sshm
 
+# Launch TUI with custom SSH config file
+sshm -c /path/to/custom/ssh_config
+
 # Add a new host using interactive form
 sshm add
 
 # Add a new host with pre-filled hostname
 sshm add hostname
 
+# Add a new host with custom SSH config file
+sshm add hostname -c /path/to/custom/ssh_config
+
 # Edit an existing host configuration
 sshm edit my-server
+
+# Edit host with custom SSH config file
+sshm edit my-server -c /path/to/custom/ssh_config
 
 # Show version information
 sshm --version
 
 # Show help and available commands
 sshm --help
+```
+
+### Configuration File Options
+
+By default, SSHM uses the standard SSH configuration file at `~/.ssh/config`. You can specify a different configuration file using the `-c` flag:
+
+```bash
+# Use custom config file in TUI mode
+sshm -c /path/to/custom/ssh_config
+
+# Use custom config file with commands
+sshm add hostname -c /path/to/custom/ssh_config
+sshm edit hostname -c /path/to/custom/ssh_config
 ```
 
 ## 🏗️ Configuration
@@ -222,24 +257,44 @@ go build -o sshm .
 
 ```
 sshm/
-├── cmd/                 # CLI commands (Cobra)
+├── main.go             # Application entry point
+├── cmd/                # CLI commands (Cobra)
 │   ├── root.go         # Root command and interactive mode
 │   ├── add.go          # Add host command
-│   └── edit.go         # Edit host command
+│   ├── edit.go         # Edit host command
+│   └── search.go       # Search command
 ├── internal/
 │   ├── config/         # SSH configuration management
 │   │   └── ssh.go      # Config parsing and manipulation
-│   ├── ui/             # Terminal UI components
-│   │   ├── tui.go      # Main TUI interface
-│   │   ├── add_form.go # Add host form
-│   │   └── edit_form.go# Edit host form
+│   ├── history/        # Connection history tracking
+│   │   └── history.go  # History management and last login tracking
+│   ├── ui/             # Terminal UI components (Bubble Tea)
+│   │   ├── tui.go      # Main TUI interface and program setup
+│   │   ├── model.go    # Core TUI model and state
+│   │   ├── update.go   # Message handling and state updates
+│   │   ├── view.go     # UI rendering and layout
+│   │   ├── table.go    # Host list table component
+│   │   ├── add_form.go # Add host form interface
+│   │   ├── edit_form.go# Edit host form interface
+│   │   ├── styles.go   # Lip Gloss styling definitions
+│   │   ├── sort.go     # Sorting and filtering logic
+│   │   └── utils.go    # UI utility functions
 │   └── validation/     # Input validation
 │       └── ssh.go      # SSH config validation
+├── images/             # Documentation assets
+│   ├── logo.png        # Project logo
+│   └── sshm.gif        # Demo animation
 ├── install/            # Installation scripts
 │   ├── unix.sh         # Unix/Linux/macOS installer
 │   └── README.md       # Installation guide
-└── .github/workflows/  # CI/CD pipelines
-    └── build.yml       # Multi-platform builds
+├── .github/            # GitHub configuration
+│   ├── copilot-instructions.md # Development guidelines
+│   └── workflows/      # CI/CD pipelines
+│       └── build.yml   # Multi-platform builds
+├── go.mod              # Go module definition
+├── go.sum              # Go module checksums
+├── LICENSE             # MIT license
+└── README.md           # Project documentation
 ```
 
 ### Dependencies
