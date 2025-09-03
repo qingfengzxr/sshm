@@ -1,9 +1,12 @@
 # SSHM Windows Installation Script
-# Usage: irm https://raw.githubusercontent.com/Gu1llaum-3/sshm/main/install/windows.ps1 | iex
+# Usage: 
+#   Online:  irm https://raw.githubusercontent.com/Gu1llaum-3/sshm/main/install/windows.ps1 | iex
+#   Local:   .\install\windows.ps1 -LocalBinary ".\sshm.exe"
 
 param(
-    [string]$InstallDir = "$env:USERPROFILE\bin",
-    [switch]$Force = $false
+    [string]$InstallDir = "$env:LOCALAPPDATA\sshm",
+    [switch]$Force = $false,
+    [string]$LocalBinary = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -41,50 +44,75 @@ if ($existingSSHM -and -not $Force) {
 $arch = if ([Environment]::Is64BitOperatingSystem) { "amd64" } else { "386" }
 Write-Info "Detected platform: Windows ($arch)"
 
-# Get latest version
-Write-Info "Fetching latest version..."
-try {
-    $latestRelease = Invoke-RestMethod -Uri "https://api.github.com/repos/Gu1llaum-3/sshm/releases/latest"
-    $latestVersion = $latestRelease.tag_name
-    Write-Info "Latest version: $latestVersion"
-} catch {
-    Write-Error "Failed to fetch latest version"
-    exit 1
-}
-
-# Download binary
-$fileName = "sshm-windows-$arch.zip"
-$downloadUrl = "https://github.com/Gu1llaum-3/sshm/releases/download/$latestVersion/$fileName"
-$tempFile = "$env:TEMP\$fileName"
-
-Write-Info "Downloading $fileName..."
-try {
-    Invoke-WebRequest -Uri $downloadUrl -OutFile $tempFile
-} catch {
-    Write-Error "Download failed"
-    exit 1
-}
-
-# Create installation directory
-if (-not (Test-Path $InstallDir)) {
-    New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
-}
-
-# Extract archive
-Write-Info "Extracting..."
-try {
-    Expand-Archive -Path $tempFile -DestinationPath $env:TEMP -Force
-    $extractedBinary = "$env:TEMP\sshm-windows-$arch.exe"
+# Check if using local binary
+if ($LocalBinary -ne "") {
+    if (-not (Test-Path $LocalBinary)) {
+        Write-Error "Local binary not found: $LocalBinary"
+        exit 1
+    }
+    
+    Write-Info "Using local binary: $LocalBinary"
     $targetPath = "$InstallDir\sshm.exe"
     
-    Move-Item -Path $extractedBinary -Destination $targetPath -Force
-} catch {
-    Write-Error "Extraction failed"
-    exit 1
-}
+    # Create installation directory
+    if (-not (Test-Path $InstallDir)) {
+        Write-Info "Creating installation directory: $InstallDir"
+        New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
+    }
+    
+    # Copy local binary
+    Write-Info "Installing binary to: $targetPath"
+    Copy-Item -Path $LocalBinary -Destination $targetPath -Force
+    
+} else {
+    # Online installation
+    Write-Info "Starting online installation..."
+    
+    # Get latest version
+    Write-Info "Fetching latest version..."
+    try {
+        $latestRelease = Invoke-RestMethod -Uri "https://api.github.com/repos/Gu1llaum-3/sshm/releases/latest"
+        $latestVersion = $latestRelease.tag_name
+        Write-Info "Target version: $latestVersion"
+    } catch {
+        Write-Error "Failed to fetch version information"
+        exit 1
+    }
 
-# Clean up
-Remove-Item $tempFile -Force
+    # Download binary
+    $fileName = "sshm-windows-$arch.zip"
+    $downloadUrl = "https://github.com/Gu1llaum-3/sshm/releases/download/$latestVersion/$fileName"
+    $tempFile = "$env:TEMP\$fileName"
+
+    Write-Info "Downloading $fileName..."
+    try {
+        Invoke-WebRequest -Uri $downloadUrl -OutFile $tempFile
+    } catch {
+        Write-Error "Download failed"
+        exit 1
+    }
+
+    # Create installation directory
+    if (-not (Test-Path $InstallDir)) {
+        New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
+    }
+
+    # Extract archive
+    Write-Info "Extracting..."
+    try {
+        Expand-Archive -Path $tempFile -DestinationPath $env:TEMP -Force
+        $extractedBinary = "$env:TEMP\sshm-windows-$arch.exe"
+        $targetPath = "$InstallDir\sshm.exe"
+        
+        Move-Item -Path $extractedBinary -Destination $targetPath -Force
+    } catch {
+        Write-Error "Extraction failed"
+        exit 1
+    }
+
+    # Clean up
+    Remove-Item $tempFile -Force
+}
 
 # Check PATH
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
