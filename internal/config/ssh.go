@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 )
@@ -20,6 +21,46 @@ type SSHHost struct {
 	ProxyJump string
 	Options   string
 	Tags      []string
+}
+
+// GetDefaultSSHConfigPath returns the default SSH config path for the current platform
+func GetDefaultSSHConfigPath() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	switch runtime.GOOS {
+	case "windows":
+		return filepath.Join(homeDir, ".ssh", "config"), nil
+	default:
+		// Linux, macOS, etc.
+		return filepath.Join(homeDir, ".ssh", "config"), nil
+	}
+}
+
+// GetSSHDirectory returns the .ssh directory path
+func GetSSHDirectory() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(homeDir, ".ssh"), nil
+}
+
+// ensureSSHDirectory creates the .ssh directory with appropriate permissions
+func ensureSSHDirectory() error {
+	sshDir, err := GetSSHDirectory()
+	if err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(sshDir); os.IsNotExist(err) {
+		// 0700 provides owner-only access across platforms
+		return os.MkdirAll(sshDir, 0700)
+	}
+	return nil
 }
 
 // configMutex protects SSH config file operations from race conditions
@@ -46,12 +87,10 @@ func backupConfig(configPath string) error {
 
 // ParseSSHConfig parses the SSH config file and returns the list of hosts
 func ParseSSHConfig() ([]SSHHost, error) {
-	homeDir, err := os.UserHomeDir()
+	configPath, err := GetDefaultSSHConfigPath()
 	if err != nil {
 		return nil, err
 	}
-
-	configPath := filepath.Join(homeDir, ".ssh", "config")
 	return ParseSSHConfigFile(configPath)
 }
 
@@ -59,18 +98,22 @@ func ParseSSHConfig() ([]SSHHost, error) {
 func ParseSSHConfigFile(configPath string) ([]SSHHost, error) {
 	// Check if the file exists, otherwise create it (and the parent directory if needed)
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		dir := filepath.Dir(configPath)
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			err = os.MkdirAll(dir, 0700)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create .ssh directory: %w", err)
-			}
+		// Ensure .ssh directory exists with proper permissions
+		if err := ensureSSHDirectory(); err != nil {
+			return nil, fmt.Errorf("failed to create .ssh directory: %w", err)
 		}
+
 		file, err := os.OpenFile(configPath, os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create SSH config file: %w", err)
 		}
 		file.Close()
+
+		// Set secure permissions on the config file
+		if err := SetSecureFilePermissions(configPath); err != nil {
+			return nil, fmt.Errorf("failed to set secure permissions: %w", err)
+		}
+
 		// File created, return empty host list
 		return []SSHHost{}, nil
 	}
@@ -181,11 +224,10 @@ func ParseSSHConfigFile(configPath string) ([]SSHHost, error) {
 
 // AddSSHHost adds a new SSH host to the config file
 func AddSSHHost(host SSHHost) error {
-	homeDir, err := os.UserHomeDir()
+	configPath, err := GetDefaultSSHConfigPath()
 	if err != nil {
 		return err
 	}
-	configPath := filepath.Join(homeDir, ".ssh", "config")
 	return AddSSHHostToFile(host, configPath)
 }
 
@@ -404,11 +446,10 @@ func GetSSHHostFromFile(hostName string, configPath string) (*SSHHost, error) {
 
 // UpdateSSHHost updates an existing SSH host configuration
 func UpdateSSHHost(oldName string, newHost SSHHost) error {
-	homeDir, err := os.UserHomeDir()
+	configPath, err := GetDefaultSSHConfigPath()
 	if err != nil {
 		return err
 	}
-	configPath := filepath.Join(homeDir, ".ssh", "config")
 	return UpdateSSHHostInFile(oldName, newHost, configPath)
 }
 
@@ -564,11 +605,10 @@ func UpdateSSHHostInFile(oldName string, newHost SSHHost, configPath string) err
 
 // DeleteSSHHost removes an SSH host configuration from the config file
 func DeleteSSHHost(hostName string) error {
-	homeDir, err := os.UserHomeDir()
+	configPath, err := GetDefaultSSHConfigPath()
 	if err != nil {
 		return err
 	}
-	configPath := filepath.Join(homeDir, ".ssh", "config")
 	return DeleteSSHHostFromFile(hostName, configPath)
 }
 

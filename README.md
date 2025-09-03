@@ -9,7 +9,7 @@
 [![Go](https://img.shields.io/badge/Go-1.23+-00ADD8?style=for-the-badge&logo=go)](https://golang.org/)
 [![Release](https://img.shields.io/github/v/release/Gu1llaum-3/sshm?style=for-the-badge)](https://github.com/Gu1llaum-3/sshm/releases)
 [![License](https://img.shields.io/github/license/Gu1llaum-3/sshm?style=for-the-badge)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS-lightgrey?style=for-the-badge)](https://github.com/Gu1llaum-3/sshm/releases)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey?style=for-the-badge)](https://github.com/Gu1llaum-3/sshm/releases)
 
 > **A modern, interactive SSH Manager for your terminal** 🔥
 
@@ -49,19 +49,26 @@ SSHM is a beautiful command-line tool that transforms how you manage and connect
 ### 🎮 **User Experience**
 - **Zero configuration** - Works out of the box with your existing SSH setup
 - **Keyboard shortcuts** for power users
-- **Cross-platform** - Supports Linux and macOS (Intel & Apple Silicon)
+- **Cross-platform** - Supports Linux, macOS (Intel & Apple Silicon), and Windows
 - **Lightweight** - Single binary with no dependencies
 
 ## 🚀 Quick Start
 
 ### Installation
 
-**One-line install (Recommended):**
+**Unix/Linux/macOS (One-line install):**
 ```bash
 curl -sSL https://raw.githubusercontent.com/Gu1llaum-3/sshm/main/install/unix.sh | bash
 ```
 
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/Gu1llaum-3/sshm/main/install/windows.ps1 | iex
+```
+
 **Alternative methods:**
+
+*Linux/macOS:*
 ```bash
 # Download specific release
 wget https://github.com/Gu1llaum-3/sshm/releases/latest/download/sshm-linux-amd64.tar.gz
@@ -69,6 +76,14 @@ wget https://github.com/Gu1llaum-3/sshm/releases/latest/download/sshm-linux-amd6
 # Extract and install
 tar -xzf sshm-linux-amd64.tar.gz
 sudo mv sshm-linux-amd64 /usr/local/bin/sshm
+```
+
+*Windows:*
+```powershell
+# Download and extract
+Invoke-WebRequest -Uri "https://github.com/Gu1llaum-3/sshm/releases/latest/download/sshm-windows-amd64.zip" -OutFile "sshm-windows-amd64.zip"
+Expand-Archive sshm-windows-amd64.zip -DestinationPath C:\tools\
+# Add C:\tools to your PATH environment variable
 ```
 
 ## 📖 Usage
@@ -152,6 +167,19 @@ sshm -c /path/to/custom/ssh_config
 sshm add hostname -c /path/to/custom/ssh_config
 sshm edit hostname -c /path/to/custom/ssh_config
 ```
+
+### Platform-Specific Notes
+
+**Windows:**
+- SSHM works with the built-in OpenSSH client (Windows 10/11)
+- Configuration file location: `%USERPROFILE%\.ssh\config`
+- Compatible with WSL SSH configurations
+- Supports the same SSH options as Unix systems
+
+**Unix/Linux/macOS:**
+- Standard SSH configuration file: `~/.ssh/config`
+- Full compatibility with OpenSSH features
+- Preserves file permissions automatically
 
 ## 🏗️ Configuration
 
@@ -314,6 +342,8 @@ Automated releases are built for multiple platforms:
 | Linux | ARM64 | [sshm-linux-arm64.tar.gz](https://github.com/Gu1llaum-3/sshm/releases/latest/download/sshm-linux-arm64.tar.gz) |
 | macOS | Intel | [sshm-darwin-amd64.tar.gz](https://github.com/Gu1llaum-3/sshm/releases/latest/download/sshm-darwin-amd64.tar.gz) |
 | macOS | Apple Silicon | [sshm-darwin-arm64.tar.gz](https://github.com/Gu1llaum-3/sshm/releases/latest/download/sshm-darwin-arm64.tar.gz) |
+| Windows | AMD64 | [sshm-windows-amd64.zip](https://github.com/Gu1llaum-3/sshm/releases/latest/download/sshm-windows-amd64.zip) |
+| Windows | ARM64 | [sshm-windows-arm64.zip](https://github.com/Gu1llaum-3/sshm/releases/latest/download/sshm-windows-arm64.zip) |
 
 ## 🤝 Contributing
 

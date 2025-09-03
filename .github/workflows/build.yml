@@ -34,6 +34,14 @@ jobs:
           - goos: darwin
             goarch: arm64
             suffix: darwin-arm64
+          # Windows AMD64
+          - goos: windows
+            goarch: amd64
+            suffix: windows-amd64
+          # Windows ARM64
+          - goos: windows
+            goarch: arm64
+            suffix: windows-arm64
 
     steps:
     - name: Checkout code
@@ -60,19 +68,30 @@ jobs:
       run: |
         mkdir -p dist
         VERSION=${GITHUB_REF#refs/tags/}
-        go build -ldflags="-s -w -X sshm/cmd.version=${VERSION}" -o dist/sshm-${{ matrix.suffix }} .
+        if [ "${{ matrix.goos }}" = "windows" ]; then
+          go build -ldflags="-s -w -X sshm/cmd.version=${VERSION}" -o dist/sshm-${{ matrix.suffix }}.exe .
+        else
+          go build -ldflags="-s -w -X sshm/cmd.version=${VERSION}" -o dist/sshm-${{ matrix.suffix }} .
+        fi
 
-    - name: Create tarball
+    - name: Create archive
       run: |
         cd dist
-        tar -czf sshm-${{ matrix.suffix }}.tar.gz sshm-${{ matrix.suffix }}
-        rm sshm-${{ matrix.suffix }}
+        if [ "${{ matrix.goos }}" = "windows" ]; then
+          zip sshm-${{ matrix.suffix }}.zip sshm-${{ matrix.suffix }}.exe
+          rm sshm-${{ matrix.suffix }}.exe
+        else
+          tar -czf sshm-${{ matrix.suffix }}.tar.gz sshm-${{ matrix.suffix }}
+          rm sshm-${{ matrix.suffix }}
+        fi
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: sshm-${{ matrix.suffix }}
-        path: dist/sshm-${{ matrix.suffix }}.tar.gz
+        path: |
+          dist/sshm-${{ matrix.suffix }}.tar.gz
+          dist/sshm-${{ matrix.suffix }}.zip
 
   release:
     name: Create Release
@@ -91,6 +110,7 @@ jobs:
       run: |
         mkdir -p release
         find ./artifacts -name "*.tar.gz" -exec cp {} ./release/ \;
+        find ./artifacts -name "*.zip" -exec cp {} ./release/ \;
         ls -la ./release/
 
     - name: Create Release

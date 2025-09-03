@@ -12,7 +12,27 @@ curl -sSL https://raw.githubusercontent.com/Gu1llaum-3/sshm/main/install/unix.sh
 
 **Note:** When using the pipe method, the installer will automatically proceed with installation if SSHM is already installed.
 
+## Windows Installation
+
+### Quick Install (Recommended)
+
+```powershell
+irm https://raw.githubusercontent.com/Gu1llaum-3/sshm/main/install/windows.ps1 | iex
+```
+
 ### Install Options
+
+**Force install without prompts:**
+```powershell
+iex "& { $(irm https://raw.githubusercontent.com/Gu1llaum-3/sshm/main/install/windows.ps1) } -Force"
+```
+
+**Custom installation directory:**
+```powershell
+iex "& { $(irm https://raw.githubusercontent.com/Gu1llaum-3/sshm/main/install/windows.ps1) } -InstallDir 'C:\tools'"
+```
+
+## Unix/Linux/macOS Advanced Options
 
 **Force install without prompts:**
 ```bash
