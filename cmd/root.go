@@ -21,9 +21,14 @@ var configFile string
 var rootCmd = &cobra.Command{
 	Use:   "sshm",
 	Short: "SSH Manager - A modern SSH connection manager",
-	Long: `SSH Manager (sshm) is a modern command-line tool for managing SSH connections.
-It provides an interactive interface to browse and connect to your SSH hosts
-configured in your ~/.ssh/config file.`,
+	Long: `SSHM is a modern SSH manager for your terminal.
+
+Main usage:
+  Running 'sshm' (without arguments) opens the interactive TUI window to browse, search, and connect to your SSH hosts graphically.
+
+You can also use sshm in CLI mode for direct operations.
+
+Hosts are read from your ~/.ssh/config file by default.`,
 	Version: version,
 	Run: func(cmd *cobra.Command, args []string) {
 		// If no arguments provided, run interactive mode

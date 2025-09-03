@@ -70,14 +70,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 			m.hosts = m.sortHosts(hosts)
-			
+
 			// Reapply search filter if there is one active
 			if m.searchInput.Value() != "" {
 				m.filteredHosts = m.filterHosts(m.searchInput.Value())
 			} else {
 				m.filteredHosts = m.hosts
 			}
-			
+
 			m.updateTableRows()
 			m.viewMode = ViewList
 			m.addForm = nil
@@ -114,14 +114,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 			m.hosts = m.sortHosts(hosts)
-			
+
 			// Reapply search filter if there is one active
 			if m.searchInput.Value() != "" {
 				m.filteredHosts = m.filterHosts(m.searchInput.Value())
 			} else {
 				m.filteredHosts = m.hosts
 			}
-			
+
 			m.updateTableRows()
 			m.viewMode = ViewList
 			m.editForm = nil
@@ -248,14 +248,14 @@ func (m Model) handleListViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			m.hosts = m.sortHosts(hosts)
-			
+
 			// Reapply search filter if there is one active
 			if m.searchInput.Value() != "" {
 				m.filteredHosts = m.filterHosts(m.searchInput.Value())
 			} else {
 				m.filteredHosts = m.hosts
 			}
-			
+
 			m.updateTableRows()
 			m.deleteMode = false
 			m.deleteHost = ""
