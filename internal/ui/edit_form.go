@@ -258,9 +258,9 @@ func (m standaloneEditForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // RunEditForm provides backward compatibility for standalone edit form
-func RunEditForm(hostName string) error {
+func RunEditForm(hostName string, configFile string) error {
 	styles := NewStyles(80)
-	editForm, err := NewEditForm(hostName, styles, 80, 24, "")
+	editForm, err := NewEditForm(hostName, styles, 80, 24, configFile)
 	if err != nil {
 		return err
 	}

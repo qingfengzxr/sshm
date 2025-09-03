@@ -18,7 +18,7 @@ var addCmd = &cobra.Command{
 			hostname = args[0]
 		}
 
-		err := ui.RunAddForm(hostname)
+		err := ui.RunAddForm(hostname, configFile)
 		if err != nil {
 			fmt.Printf("Error adding host: %v\n", err)
 		}

@@ -15,7 +15,7 @@ var editCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		hostname := args[0]
 
-		err := ui.RunEditForm(hostname)
+		err := ui.RunEditForm(hostname, configFile)
 		if err != nil {
 			fmt.Printf("Error editing host: %v\n", err)
 		}

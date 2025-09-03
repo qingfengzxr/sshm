@@ -270,9 +270,9 @@ func (m standaloneAddForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // RunAddForm provides backward compatibility for standalone add form
-func RunAddForm(hostname string) error {
+func RunAddForm(hostname string, configFile string) error {
 	styles := NewStyles(80)
-	addForm := NewAddForm(hostname, styles, 80, 24, "")
+	addForm := NewAddForm(hostname, styles, 80, 24, configFile)
 	m := standaloneAddForm{addForm}
 
 	p := tea.NewProgram(m, tea.WithAltScreen())

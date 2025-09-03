@@ -59,7 +59,7 @@ func runInteractiveMode() {
 		var response string
 		_, err := fmt.Scanln(&response)
 		if err == nil && (response == "y" || response == "Y") {
-			err := ui.RunAddForm("")
+			err := ui.RunAddForm("", configFile)
 			if err != nil {
 				fmt.Printf("Error adding host: %v\n", err)
 			}
