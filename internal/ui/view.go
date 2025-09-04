@@ -23,6 +23,10 @@ func (m Model) View() string {
 		if m.editForm != nil {
 			return m.editForm.View()
 		}
+	case ViewPortForward:
+		if m.portForwardForm != nil {
+			return m.portForwardForm.View()
+		}
 	case ViewList:
 		return m.renderListView()
 	}
@@ -62,7 +66,7 @@ func (m Model) renderListView() string {
 	// Add the help text
 	var helpText string
 	if !m.searchMode {
-		helpText = " Use ↑/↓ to navigate • Enter to connect • (a)dd • (e)dit • (d)elete • / to search • Tab to switch\n Sort: (s)witch • (r)ecent • (n)ame • q/ESC to quit"
+		helpText = " Use ↑/↓ to navigate • Enter to connect • (a)dd • (e)dit • (d)elete • (f)orward • / to search • Tab to switch\n Sort: (s)witch • (r)ecent • (n)ame • q/ESC to quit"
 	} else {
 		helpText = " Type to filter hosts • Enter to validate search • Tab to switch to table • ESC to quit"
 	}

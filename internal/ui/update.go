@@ -46,6 +46,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.editForm.height = m.height
 			m.editForm.styles = m.styles
 		}
+		if m.portForwardForm != nil {
+			m.portForwardForm.width = m.width
+			m.portForwardForm.height = m.height
+			m.portForwardForm.styles = m.styles
+		}
 		return m, nil
 
 	case addFormSubmitMsg:
@@ -136,6 +141,45 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.table.Focus()
 		return m, nil
 
+	case portForwardSubmitMsg:
+		if msg.err != nil {
+			// Show error in form
+			if m.portForwardForm != nil {
+				m.portForwardForm.err = msg.err.Error()
+			}
+			return m, nil
+		} else {
+			// Success: execute SSH command with port forwarding
+			if len(msg.sshArgs) > 0 {
+				sshCmd := exec.Command("ssh", msg.sshArgs...)
+
+				// Record the connection in history
+				if m.historyManager != nil && m.portForwardForm != nil {
+					err := m.historyManager.RecordConnection(m.portForwardForm.hostName)
+					if err != nil {
+						fmt.Printf("Warning: Could not record connection history: %v\n", err)
+					}
+				}
+
+				return m, tea.ExecProcess(sshCmd, func(err error) tea.Msg {
+					return tea.Quit()
+				})
+			}
+
+			// If no SSH args, just return to list view
+			m.viewMode = ViewList
+			m.portForwardForm = nil
+			m.table.Focus()
+			return m, nil
+		}
+
+	case portForwardCancelMsg:
+		// Cancel: return to list view
+		m.viewMode = ViewList
+		m.portForwardForm = nil
+		m.table.Focus()
+		return m, nil
+
 	case tea.KeyMsg:
 		// Handle view-specific key presses
 		switch m.viewMode {
@@ -151,6 +195,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				var newForm *editFormModel
 				newForm, cmd = m.editForm.Update(msg)
 				m.editForm = newForm
+				return m, cmd
+			}
+		case ViewPortForward:
+			if m.portForwardForm != nil {
+				var newForm *portForwardModel
+				newForm, cmd = m.portForwardForm.Update(msg)
+				m.portForwardForm = newForm
 				return m, cmd
 			}
 		case ViewList:
@@ -322,6 +373,17 @@ func (m Model) handleListViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.deleteHost = hostName
 				m.table.Blur()
 				return m, nil
+			}
+		}
+	case "f":
+		if !m.searchMode && !m.deleteMode {
+			// Port forwarding for the selected host
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				hostName := selected[0] // The hostname is in the first column
+				m.portForwardForm = NewPortForwardForm(hostName, m.styles, m.width, m.height, m.configFile)
+				m.viewMode = ViewPortForward
+				return m, textinput.Blink
 			}
 		}
 	case "s":

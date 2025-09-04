@@ -28,7 +28,8 @@ SSHM is a beautiful command-line tool that transforms how you manage and connect
 ### 🎯 **Core Features**
 - **🎨 Beautiful TUI Interface** - Navigate your SSH hosts with an elegant, interactive terminal UI
 - **⚡ Quick Connect** - Connect to any host instantly
-- **📝 Easy Management** - Add, edit, and manage SSH configurations seamlessly
+- **🔄 Port Forwarding** - Easy setup for Local, Remote, and Dynamic (SOCKS) forwarding
+- **📝Easy Management** - Add, edit, and manage SSH configurations seamlessly
 - **🏷️ Tag Support** - Organize your hosts with custom tags for better categorization
 - **🔍 Smart Search** - Find hosts quickly with built-in filtering and search
 - **🔒 Secure** - Works directly with your existing `~/.ssh/config` file
@@ -40,6 +41,7 @@ SSHM is a beautiful command-line tool that transforms how you manage and connect
 - **Add new SSH hosts** with interactive forms
 - **Edit existing configurations** in-place
 - **Delete hosts** with confirmation prompts
+- **Port forwarding setup** with intuitive interface for Local (-L), Remote (-R), and Dynamic (-D) forwarding
 - **Backup configurations** automatically before changes
 - **Validate settings** to prevent configuration errors
 - **ProxyJump support** for secure connection tunneling through bastion hosts
@@ -102,6 +104,7 @@ sshm
 - `a` - Add new host
 - `e` - Edit selected host
 - `d` - Delete selected host
+- `f` - Port forwarding setup
 - `q` - Quit
 - `/` - Search/filter hosts
 
@@ -121,6 +124,90 @@ The interactive forms will guide you through configuration:
 - **ProxyJump** - Jump server for connection tunneling
 - **SSH Options** - Additional SSH options in `-o` format (e.g., `-o Compression=yes -o ServerAliveInterval=60`)
 - **Tags** - Comma-separated tags for organization
+
+### Port Forwarding
+
+SSHM provides an intuitive interface for setting up SSH port forwarding. Press `f` while selecting a host to open the port forwarding setup:
+
+**Forward Types:**
+- **Local (-L)** - Forward a local port to a remote host/port through the SSH connection
+  - Example: Access a remote database on `localhost:5432` via local port `15432`
+  - Use case: `ssh -L 15432:localhost:5432 server` → Database accessible on `localhost:15432`
+
+- **Remote (-R)** - Forward a remote port back to a local host/port
+  - Example: Expose local web server on remote host's port `8080`
+  - Use case: `ssh -R 8080:localhost:3000 server` → Local app accessible from remote host's port 8080
+  - ⚠️ **Requirements for external access:**
+    - **SSH Server Config**: Add `GatewayPorts yes` to `/etc/ssh/sshd_config` and restart SSH service
+    - **Firewall**: Open the remote port in the server's firewall (`ufw allow 8080` or equivalent)
+    - **Port Availability**: Ensure the remote port is not already in use
+    - **Bind Address**: Use `0.0.0.0` for external access, `127.0.0.1` for local-only
+
+- **Dynamic (-D)** - Create a SOCKS proxy for secure browsing
+  - Example: Route web traffic through the SSH connection
+  - Use case: `ssh -D 1080 server` → Configure browser to use `localhost:1080` as SOCKS proxy
+  - ⚠️ **Configuration requirements:**
+    - **Browser Setup**: Configure SOCKS v5 proxy in browser settings
+    - **DNS**: Enable "Proxy DNS when using SOCKS v5" for full privacy
+    - **Applications**: Only SOCKS-aware applications will use the proxy
+    - **Bind Address**: Use `127.0.0.1` for security (local access only)
+
+**Port Forwarding Interface:**
+- Choose forward type with ←/→ arrow keys
+- Configure ports and addresses with guided forms
+- Optional bind address configuration (defaults to 127.0.0.1)
+- Real-time validation of port numbers and addresses
+- Connect automatically with configured forwarding options
+
+**Troubleshooting Port Forwarding:**
+
+*Remote Forwarding Issues:*
+```bash
+# Error: "remote port forwarding failed for listen port X"
+# Solutions:
+1. Check if port is already in use: ssh server "netstat -tln | grep :X"
+2. Use a different port that's available
+3. Enable GatewayPorts in SSH config for external access
+```
+
+*SSH Server Configuration for Remote Forwarding:*
+```bash
+# Edit SSH daemon config on the server:
+sudo nano /etc/ssh/sshd_config
+
+# Add or uncomment:
+GatewayPorts yes
+
+# Restart SSH service:
+sudo systemctl restart sshd  # Ubuntu/Debian/CentOS 7+
+# OR
+sudo service ssh restart     # Older systems
+```
+
+*Firewall Configuration:*
+```bash
+# Ubuntu/Debian (UFW):
+sudo ufw allow [port_number]
+
+# CentOS/RHEL/Rocky (firewalld):
+sudo firewall-cmd --add-port=[port_number]/tcp --permanent
+sudo firewall-cmd --reload
+
+# Check if port is accessible:
+telnet [server_ip] [port_number]
+```
+
+*Dynamic Forwarding (SOCKS) Browser Setup:*
+```
+Firefox: about:preferences → Network Settings
+- Manual proxy configuration
+- SOCKS Host: localhost, Port: [your_port]
+- SOCKS v5: ✓
+- Proxy DNS when using SOCKS v5: ✓
+
+Chrome: Launch with proxy
+chrome --proxy-server="socks5://localhost:[your_port]"
+```
 
 ### CLI Usage
 

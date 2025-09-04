@@ -36,9 +36,12 @@ type Styles struct {
 	Error lipgloss.Style
 
 	// Form styles (for add/edit forms)
-	FormTitle lipgloss.Style
-	FormField lipgloss.Style
-	FormHelp  lipgloss.Style
+	FormTitle     lipgloss.Style
+	FormField     lipgloss.Style
+	FormHelp      lipgloss.Style
+	FormContainer lipgloss.Style
+	Label         lipgloss.Style
+	FocusedLabel  lipgloss.Style
 }
 
 // NewStyles creates a new Styles struct with the given terminal width
@@ -105,6 +108,18 @@ func NewStyles(width int) Styles {
 
 		FormHelp: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#626262")),
+
+		FormContainer: lipgloss.NewStyle().
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color(PrimaryColor)).
+			Padding(1, 2),
+
+		Label: lipgloss.NewStyle().
+			Foreground(lipgloss.Color(SecondaryColor)),
+
+		FocusedLabel: lipgloss.NewStyle().
+			Foreground(lipgloss.Color(PrimaryColor)).
+			Bold(true),
 	}
 }
 

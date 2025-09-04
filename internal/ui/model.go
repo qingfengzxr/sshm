@@ -35,7 +35,30 @@ const (
 	ViewList ViewMode = iota
 	ViewAdd
 	ViewEdit
+	ViewPortForward
 )
+
+// PortForwardType defines the type of port forwarding
+type PortForwardType int
+
+const (
+	LocalForward PortForwardType = iota
+	RemoteForward
+	DynamicForward
+)
+
+func (p PortForwardType) String() string {
+	switch p {
+	case LocalForward:
+		return "Local (-L)"
+	case RemoteForward:
+		return "Remote (-R)"
+	case DynamicForward:
+		return "Dynamic (-D)"
+	default:
+		return "Local (-L)"
+	}
+}
 
 // Model represents the state of the user interface
 type Model struct {
@@ -51,9 +74,10 @@ type Model struct {
 	configFile     string // Path to the SSH config file
 
 	// View management
-	viewMode ViewMode
-	addForm  *addFormModel
-	editForm *editFormModel
+	viewMode        ViewMode
+	addForm         *addFormModel
+	editForm        *editFormModel
+	portForwardForm *portForwardModel
 
 	// Terminal size and styles
 	width  int
