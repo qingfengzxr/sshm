@@ -42,6 +42,7 @@ type Styles struct {
 	FormContainer lipgloss.Style
 	Label         lipgloss.Style
 	FocusedLabel  lipgloss.Style
+	HelpSection   lipgloss.Style
 }
 
 // NewStyles creates a new Styles struct with the given terminal width
@@ -88,8 +89,7 @@ func NewStyles(width int) Styles {
 			Foreground(lipgloss.Color(SecondaryColor)),
 
 		HelpText: lipgloss.NewStyle().
-			Foreground(lipgloss.Color(SecondaryColor)).
-			MarginTop(1),
+			Foreground(lipgloss.Color(SecondaryColor)),
 
 		// Error style
 		Error: lipgloss.NewStyle().
@@ -118,8 +118,10 @@ func NewStyles(width int) Styles {
 			Foreground(lipgloss.Color(SecondaryColor)),
 
 		FocusedLabel: lipgloss.NewStyle().
-			Foreground(lipgloss.Color(PrimaryColor)).
-			Bold(true),
+			Foreground(lipgloss.Color(PrimaryColor)),
+
+		HelpSection: lipgloss.NewStyle().
+			Padding(0, 2),
 	}
 }
 

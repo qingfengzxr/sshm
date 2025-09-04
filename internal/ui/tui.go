@@ -61,8 +61,8 @@ func NewModel(hosts []config.SSHHost, configFile string) Model {
 	columns := []table.Column{
 		{Title: "Name", Width: nameWidth},
 		{Title: "Hostname", Width: 25},
-		{Title: "User", Width: 12},
-		{Title: "Port", Width: 6},
+		// {Title: "User", Width: 12},                  // Commented to save space
+		// {Title: "Port", Width: 6},                   // Commented to save space
 		{Title: "Tags", Width: tagsWidth},
 		{Title: "Last Login", Width: lastLoginWidth},
 	}
@@ -92,8 +92,8 @@ func NewModel(hosts []config.SSHHost, configFile string) Model {
 		rows = append(rows, table.Row{
 			host.Name,
 			host.Hostname,
-			host.User,
-			host.Port,
+			// host.User,        // Commented to save space
+			// host.Port,        // Commented to save space
 			tagsStr,
 			lastLoginStr,
 		})

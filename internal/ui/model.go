@@ -35,7 +35,9 @@ const (
 	ViewList ViewMode = iota
 	ViewAdd
 	ViewEdit
+	ViewInfo
 	ViewPortForward
+	ViewHelp
 )
 
 // PortForwardType defines the type of port forwarding
@@ -77,7 +79,9 @@ type Model struct {
 	viewMode        ViewMode
 	addForm         *addFormModel
 	editForm        *editFormModel
+	infoForm        *infoFormModel
 	portForwardForm *portForwardModel
+	helpForm        *helpModel
 
 	// Terminal size and styles
 	width  int

@@ -23,9 +23,17 @@ func (m Model) View() string {
 		if m.editForm != nil {
 			return m.editForm.View()
 		}
+	case ViewInfo:
+		if m.infoForm != nil {
+			return m.infoForm.View()
+		}
 	case ViewPortForward:
 		if m.portForwardForm != nil {
 			return m.portForwardForm.View()
+		}
+	case ViewHelp:
+		if m.helpForm != nil {
+			return m.helpForm.View()
 		}
 	case ViewList:
 		return m.renderListView()
@@ -50,10 +58,6 @@ func (m Model) renderListView() string {
 		components = append(components, m.styles.SearchUnfocused.Render(searchPrompt+m.searchInput.View()))
 	}
 
-	// Add the sort mode indicator
-	sortInfo := fmt.Sprintf(" Sort: %s", m.sortMode.String())
-	components = append(components, m.styles.SortInfo.Render(sortInfo))
-
 	// Add the table with the appropriate style based on focus
 	if m.searchMode {
 		// The table is not focused, use the unfocused style
@@ -66,9 +70,9 @@ func (m Model) renderListView() string {
 	// Add the help text
 	var helpText string
 	if !m.searchMode {
-		helpText = " Use ↑/↓ to navigate • Enter to connect • (a)dd • (e)dit • (d)elete • (f)orward • / to search • Tab to switch\n Sort: (s)witch • (r)ecent • (n)ame • q/ESC to quit"
+		helpText = " ↑/↓: navigate • Enter: connect • i: info • h: help • q: quit"
 	} else {
-		helpText = " Type to filter hosts • Enter to validate search • Tab to switch to table • ESC to quit"
+		helpText = " Type to filter • Enter: validate • Tab: switch • ESC: quit"
 	}
 	components = append(components, m.styles.HelpText.Render(helpText))
 

@@ -46,10 +46,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.editForm.height = m.height
 			m.editForm.styles = m.styles
 		}
+		if m.infoForm != nil {
+			m.infoForm.width = m.width
+			m.infoForm.height = m.height
+			m.infoForm.styles = m.styles
+		}
 		if m.portForwardForm != nil {
 			m.portForwardForm.width = m.width
 			m.portForwardForm.height = m.height
 			m.portForwardForm.styles = m.styles
+		}
+		if m.helpForm != nil {
+			m.helpForm.width = m.width
+			m.helpForm.height = m.height
+			m.helpForm.styles = m.styles
 		}
 		return m, nil
 
@@ -141,6 +151,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.table.Focus()
 		return m, nil
 
+	case infoFormCancelMsg:
+		// Cancel: return to list view
+		m.viewMode = ViewList
+		m.infoForm = nil
+		m.table.Focus()
+		return m, nil
+
+	case infoFormEditMsg:
+		// Switch from info to edit mode
+		editForm, err := NewEditForm(msg.hostName, m.styles, m.width, m.height, m.configFile)
+		if err != nil {
+			// Handle error - could show in UI, for now just go back to list
+			m.viewMode = ViewList
+			m.infoForm = nil
+			m.table.Focus()
+			return m, nil
+		}
+		m.editForm = editForm
+		m.infoForm = nil
+		m.viewMode = ViewEdit
+		return m, textinput.Blink
+
 	case portForwardSubmitMsg:
 		if msg.err != nil {
 			// Show error in form
@@ -180,6 +212,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.table.Focus()
 		return m, nil
 
+	case helpCloseMsg:
+		// Close help: return to list view
+		m.viewMode = ViewList
+		m.helpForm = nil
+		m.table.Focus()
+		return m, nil
+
 	case tea.KeyMsg:
 		// Handle view-specific key presses
 		switch m.viewMode {
@@ -197,11 +236,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.editForm = newForm
 				return m, cmd
 			}
+		case ViewInfo:
+			if m.infoForm != nil {
+				var newForm *infoFormModel
+				newForm, cmd = m.infoForm.Update(msg)
+				m.infoForm = newForm
+				return m, cmd
+			}
 		case ViewPortForward:
 			if m.portForwardForm != nil {
 				var newForm *portForwardModel
 				newForm, cmd = m.portForwardForm.Update(msg)
 				m.portForwardForm = newForm
+				return m, cmd
+			}
+		case ViewHelp:
+			if m.helpForm != nil {
+				var newForm *helpModel
+				newForm, cmd = m.helpForm.Update(msg)
+				m.helpForm = newForm
 				return m, cmd
 			}
 		case ViewList:
@@ -356,6 +409,22 @@ func (m Model) handleListViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, textinput.Blink
 			}
 		}
+	case "i":
+		if !m.searchMode && !m.deleteMode {
+			// Show info for the selected host
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				hostName := selected[0] // The hostname is in the first column
+				infoForm, err := NewInfoForm(hostName, m.styles, m.width, m.height, m.configFile)
+				if err != nil {
+					// Handle error - could show in UI
+					return m, nil
+				}
+				m.infoForm = infoForm
+				m.viewMode = ViewInfo
+				return m, nil
+			}
+		}
 	case "a":
 		if !m.searchMode && !m.deleteMode {
 			// Add a new host
@@ -385,6 +454,13 @@ func (m Model) handleListViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.viewMode = ViewPortForward
 				return m, textinput.Blink
 			}
+		}
+	case "h":
+		if !m.searchMode && !m.deleteMode {
+			// Show help
+			m.helpForm = NewHelpForm(m.styles, m.width, m.height)
+			m.viewMode = ViewHelp
+			return m, nil
 		}
 	case "s":
 		if !m.searchMode && !m.deleteMode {

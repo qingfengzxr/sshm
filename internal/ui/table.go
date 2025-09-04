@@ -122,8 +122,8 @@ func (m *Model) updateTableRows() {
 		rows = append(rows, table.Row{
 			host.Name,
 			host.Hostname,
-			host.User,
-			host.Port,
+			// host.User,      // Commented to save space
+			// host.Port,      // Commented to save space
 			tagsStr,
 			lastLoginStr,
 		})
@@ -142,39 +142,23 @@ func (m *Model) updateTableHeight() {
 		return
 	}
 
-	// Calculate dynamic table height based on terminal size
-	// Layout breakdown:
-	// - ASCII title: 5 lines (1 empty + 4 text lines)
-	// - Search bar: 1 line
-	// - Sort info: 1 line
-	// - Help text: 2 lines (multi-line text)
-	// - App margins/spacing: 2 lines
-	// Total reserved: 11 lines, mais réduisons à 7 pour forcer plus d'espace
-	reservedHeight := 7 // Réduction agressive pour tester
-	availableHeight := m.height - reservedHeight
 	hostCount := len(m.table.Rows())
 
-	// Minimum height should be at least 5 rows for usability
-	minTableHeight := 6 // 1 header + 5 data rows
-	maxTableHeight := availableHeight
-	if maxTableHeight < minTableHeight {
-		maxTableHeight = minTableHeight
+	// Calculate exactly what we need:
+	// 1 line for header + actual number of host rows + 1 extra line for better UX
+	tableHeight := 1 + hostCount + 1
+
+	// Set a reasonable maximum based on terminal height
+	// Leave space for: title (5) + search (1) + help (1) + margins (2) = 9 lines
+	// But be less conservative, use 7 lines instead of 9
+	maxPossibleHeight := m.height - 7
+	if maxPossibleHeight < 4 {
+		maxPossibleHeight = 4 // Minimum: header + 3 rows
 	}
 
-	tableHeight := 1 // header
-	dataRowsNeeded := hostCount
-	maxDataRows := maxTableHeight - 1 // subtract 1 for header
-
-	if dataRowsNeeded <= maxDataRows {
-		// We have enough space for all hosts
-		tableHeight += dataRowsNeeded
-	} else {
-		// We need to limit to available space
-		tableHeight += maxDataRows
+	if tableHeight > maxPossibleHeight {
+		tableHeight = maxPossibleHeight
 	}
-
-	// FORCE: Ajoutons une ligne supplémentaire pour résoudre le problème
-	tableHeight += 1
 
 	// Update table height
 	m.table.SetHeight(tableHeight)
@@ -198,11 +182,11 @@ func (m *Model) updateTableColumns() {
 
 	// Fixed column widths
 	hostnameWidth := 25
-	userWidth := 12
-	portWidth := 6
+	// userWidth := 12      // Commented to save space
+	// portWidth := 6       // Commented to save space
 
 	// Calculate total width needed for all columns
-	totalFixedWidth := hostnameWidth + userWidth + portWidth
+	totalFixedWidth := hostnameWidth // + userWidth + portWidth  // Commented columns
 	totalVariableWidth := nameWidth + tagsWidth + lastLoginWidth
 	totalWidth := totalFixedWidth + totalVariableWidth
 
@@ -226,14 +210,25 @@ func (m *Model) updateTableColumns() {
 		}
 	}
 
-	// Create new columns with updated widths
+	// Create new columns with updated widths and sort indicators
+	nameTitle := "Name"
+	lastLoginTitle := "Last Login"
+
+	// Add sort indicators based on current sort mode
+	switch m.sortMode {
+	case SortByName:
+		nameTitle += " ↓"
+	case SortByLastUsed:
+		lastLoginTitle += " ↓"
+	}
+
 	columns := []table.Column{
-		{Title: "Name", Width: nameWidth},
+		{Title: nameTitle, Width: nameWidth},
 		{Title: "Hostname", Width: hostnameWidth},
-		{Title: "User", Width: userWidth},
-		{Title: "Port", Width: portWidth},
+		// {Title: "User", Width: userWidth},      // Commented to save space
+		// {Title: "Port", Width: portWidth},      // Commented to save space
 		{Title: "Tags", Width: tagsWidth},
-		{Title: "Last Login", Width: lastLoginWidth},
+		{Title: lastLoginTitle, Width: lastLoginWidth},
 	}
 
 	m.table.SetColumns(columns)
