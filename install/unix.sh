@@ -74,10 +74,10 @@ downloadBinary() {
         exit 1
     fi
     
-    # Find the extracted binary
-    EXTRACTED_BINARY=$(find . -name "sshm-${OS}-${ARCH}" -type f)
-    if [ -z "$EXTRACTED_BINARY" ]; then
-        printf "${RED}Could not find extracted binary${NC}\n"
+    # Check if the expected binary exists (no find needed)
+    EXTRACTED_BINARY="./sshm-${OS}-${ARCH}"
+    if [ ! -f "$EXTRACTED_BINARY" ]; then
+        printf "${RED}Could not find extracted binary: $EXTRACTED_BINARY${NC}\n"
         exit 1
     fi
     
@@ -88,16 +88,36 @@ downloadBinary() {
 install() {
     printf "${YELLOW}Installing SSHM...${NC}\n"
     
+    # Backup old version if it exists to prevent interference during installation
+    OLD_BACKUP=""
+    if [ -f "$EXECUTABLE_PATH" ]; then
+        OLD_BACKUP="$EXECUTABLE_PATH.backup.$$"
+        runAsRoot mv "$EXECUTABLE_PATH" "$OLD_BACKUP"
+    fi
+    
     chmod +x "sshm-tmp"
     if [ $? -ne 0 ]; then
         printf "${RED}Failed to set permissions${NC}\n"
+        # Restore backup if installation fails
+        if [ -n "$OLD_BACKUP" ] && [ -f "$OLD_BACKUP" ]; then
+            runAsRoot mv "$OLD_BACKUP" "$EXECUTABLE_PATH"
+        fi
         exit 1
     fi
 
     runAsRoot mv "sshm-tmp" "$EXECUTABLE_PATH"
     if [ $? -ne 0 ]; then
         printf "${RED}Failed to install binary${NC}\n"
+        # Restore backup if installation fails
+        if [ -n "$OLD_BACKUP" ] && [ -f "$OLD_BACKUP" ]; then
+            runAsRoot mv "$OLD_BACKUP" "$EXECUTABLE_PATH"
+        fi
         exit 1
+    fi
+    
+    # Clean up backup if installation succeeded
+    if [ -n "$OLD_BACKUP" ] && [ -f "$OLD_BACKUP" ]; then
+        runAsRoot rm -f "$OLD_BACKUP"
     fi
 }
 
@@ -161,7 +181,8 @@ main() {
     # Show version
     printf "${YELLOW}Verifying installation...${NC}\n"
     if command -v sshm >/dev/null 2>&1; then
-        sshm --version
+        # Use the full path to ensure we're using the newly installed version
+        "$EXECUTABLE_PATH" --version 2>/dev/null || echo "Version check failed, but installation completed"
     else
         printf "${RED}Warning: 'sshm' command not found in PATH. You may need to restart your terminal or add $INSTALL_DIR to your PATH.${NC}\n"
     fi
