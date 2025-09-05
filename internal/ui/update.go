@@ -61,6 +61,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.helpForm.height = m.height
 			m.helpForm.styles = m.styles
 		}
+		if m.fileSelectorForm != nil {
+			m.fileSelectorForm.width = m.width
+			m.fileSelectorForm.height = m.height
+			m.fileSelectorForm.styles = m.styles
+		}
 		return m, nil
 
 	case addFormSubmitMsg:
@@ -157,6 +162,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.infoForm = nil
 		m.table.Focus()
 		return m, nil
+
+	case fileSelectorMsg:
+		if msg.cancelled {
+			// Cancel: return to list view
+			m.viewMode = ViewList
+			m.fileSelectorForm = nil
+			m.table.Focus()
+			return m, nil
+		} else {
+			// File selected: proceed to add form with selected file
+			m.addForm = NewAddForm("", m.styles, m.width, m.height, msg.selectedFile)
+			m.viewMode = ViewAdd
+			m.fileSelectorForm = nil
+			return m, textinput.Blink
+		}
 
 	case infoFormEditMsg:
 		// Switch from info to edit mode
@@ -255,6 +275,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				var newForm *helpModel
 				newForm, cmd = m.helpForm.Update(msg)
 				m.helpForm = newForm
+				return m, cmd
+			}
+		case ViewFileSelector:
+			if m.fileSelectorForm != nil {
+				var newForm *fileSelectorModel
+				newForm, cmd = m.fileSelectorForm.Update(msg)
+				m.fileSelectorForm = newForm
 				return m, cmd
 			}
 		case ViewList:
@@ -427,9 +454,40 @@ func (m Model) handleListViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "a":
 		if !m.searchMode && !m.deleteMode {
-			// Add a new host
-			m.addForm = NewAddForm("", m.styles, m.width, m.height, m.configFile)
-			m.viewMode = ViewAdd
+			// Check if there are multiple config files starting from the current base config
+			var configFiles []string
+			var err error
+
+			if m.configFile != "" {
+				// Use the specified config file as base
+				configFiles, err = config.GetAllConfigFilesFromBase(m.configFile)
+			} else {
+				// Use the default config file as base
+				configFiles, err = config.GetAllConfigFiles()
+			}
+
+			if err != nil || len(configFiles) <= 1 {
+				// Only one config file (or error), go directly to add form
+				var configFile string
+				if len(configFiles) == 1 {
+					configFile = configFiles[0]
+				} else {
+					configFile = m.configFile
+				}
+				m.addForm = NewAddForm("", m.styles, m.width, m.height, configFile)
+				m.viewMode = ViewAdd
+			} else {
+				// Multiple config files, show file selector
+				fileSelectorForm, err := NewFileSelectorFromBase("Select config file to add host to:", m.styles, m.width, m.height, m.configFile)
+				if err != nil {
+					// Fallback to default behavior if file selector fails
+					m.addForm = NewAddForm("", m.styles, m.width, m.height, m.configFile)
+					m.viewMode = ViewAdd
+				} else {
+					m.fileSelectorForm = fileSelectorForm
+					m.viewMode = ViewFileSelector
+				}
+			}
 			return m, textinput.Blink
 		}
 	case "d":

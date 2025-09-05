@@ -91,6 +91,7 @@ func (m *infoFormModel) View() string {
 		value string
 	}{
 		{"Host Name", m.host.Name},
+		{"Config File", formatConfigFile(m.host.SourceFile)},
 		{"Hostname/IP", m.host.Hostname},
 		{"User", formatOptionalValue(m.host.User)},
 		{"Port", formatOptionalValue(m.host.Port)},

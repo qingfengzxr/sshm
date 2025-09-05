@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -54,4 +55,17 @@ func formatTimeAgo(t time.Time) string {
 		}
 		return fmt.Sprintf("%d years ago", years)
 	}
+}
+
+// formatConfigFile formats a config file path for display
+func formatConfigFile(filePath string) string {
+	if filePath == "" {
+		return "Unknown"
+	}
+	// Show just the filename and parent directory for readability
+	parts := strings.Split(filePath, "/")
+	if len(parts) >= 2 {
+		return fmt.Sprintf(".../%s/%s", parts[len(parts)-2], parts[len(parts)-1])
+	}
+	return filePath
 }

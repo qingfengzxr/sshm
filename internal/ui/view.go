@@ -35,6 +35,10 @@ func (m Model) View() string {
 		if m.helpForm != nil {
 			return m.helpForm.View()
 		}
+	case ViewFileSelector:
+		if m.fileSelectorForm != nil {
+			return m.fileSelectorForm.View()
+		}
 	case ViewList:
 		return m.renderListView()
 	}

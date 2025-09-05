@@ -13,14 +13,15 @@ import (
 
 // SSHHost represents an SSH host configuration
 type SSHHost struct {
-	Name      string
-	Hostname  string
-	User      string
-	Port      string
-	Identity  string
-	ProxyJump string
-	Options   string
-	Tags      []string
+	Name       string
+	Hostname   string
+	User       string
+	Port       string
+	Identity   string
+	ProxyJump  string
+	Options    string
+	Tags       []string
+	SourceFile string // Path to the config file where this host is defined
 }
 
 // GetDefaultSSHConfigPath returns the default SSH config path for the current platform
@@ -209,9 +210,10 @@ func parseSSHConfigFileWithProcessedFiles(configPath string, processedFiles map[
 			}
 			// Create new host
 			currentHost = &SSHHost{
-				Name: value,
-				Port: "22",        // Default port
-				Tags: pendingTags, // Assign pending tags to this host
+				Name:       value,
+				Port:       "22",        // Default port
+				Tags:       pendingTags, // Assign pending tags to this host
+				SourceFile: absPath,     // Track which file this host comes from
 			}
 			// Clear pending tags for next host
 			pendingTags = nil
@@ -283,6 +285,16 @@ func processIncludeDirective(pattern string, baseConfigPath string, processedFil
 	for _, match := range matches {
 		// Skip directories
 		if info, err := os.Stat(match); err == nil && info.IsDir() {
+			continue
+		}
+
+		// Skip backup files created by sshm (*.backup)
+		if strings.HasSuffix(match, ".backup") {
+			continue
+		}
+
+		// Skip markdown files (*.md)
+		if strings.HasSuffix(match, ".md") {
 			continue
 		}
 
@@ -529,11 +541,7 @@ func GetSSHHostFromFile(hostName string, configPath string) (*SSHHost, error) {
 
 // UpdateSSHHost updates an existing SSH host configuration
 func UpdateSSHHost(oldName string, newHost SSHHost) error {
-	configPath, err := GetDefaultSSHConfigPath()
-	if err != nil {
-		return err
-	}
-	return UpdateSSHHostInFile(oldName, newHost, configPath)
+	return UpdateSSHHostV2(oldName, newHost)
 }
 
 // UpdateSSHHostInFile updates an existing SSH host configuration in a specific file
@@ -688,11 +696,7 @@ func UpdateSSHHostInFile(oldName string, newHost SSHHost, configPath string) err
 
 // DeleteSSHHost removes an SSH host configuration from the config file
 func DeleteSSHHost(hostName string) error {
-	configPath, err := GetDefaultSSHConfigPath()
-	if err != nil {
-		return err
-	}
-	return DeleteSSHHostFromFile(hostName, configPath)
+	return DeleteSSHHostV2(hostName)
 }
 
 // DeleteSSHHostFromFile deletes an SSH host from a specific config file
@@ -775,4 +779,116 @@ func DeleteSSHHostFromFile(hostName, configPath string) error {
 	// Write back to file
 	newContent := strings.Join(newLines, "\n")
 	return os.WriteFile(configPath, []byte(newContent), 0600)
+}
+
+// FindHostInAllConfigs finds a host in all configuration files and returns the host with its source file
+func FindHostInAllConfigs(hostName string) (*SSHHost, error) {
+	hosts, err := ParseSSHConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, host := range hosts {
+		if host.Name == hostName {
+			return &host, nil
+		}
+	}
+
+	return nil, fmt.Errorf("host '%s' not found in any configuration file", hostName)
+}
+
+// GetAllConfigFiles returns all SSH config files (main + included files)
+func GetAllConfigFiles() ([]string, error) {
+	configPath, err := GetDefaultSSHConfigPath()
+	if err != nil {
+		return nil, err
+	}
+
+	processedFiles := make(map[string]bool)
+	_, _ = parseSSHConfigFileWithProcessedFiles(configPath, processedFiles)
+
+	files := make([]string, 0, len(processedFiles))
+	for file := range processedFiles {
+		files = append(files, file)
+	}
+
+	return files, nil
+}
+
+// GetAllConfigFilesFromBase returns all SSH config files starting from a specific base config file
+func GetAllConfigFilesFromBase(baseConfigPath string) ([]string, error) {
+	if baseConfigPath == "" {
+		// Fallback to default behavior
+		return GetAllConfigFiles()
+	}
+
+	processedFiles := make(map[string]bool)
+	_, _ = parseSSHConfigFileWithProcessedFiles(baseConfigPath, processedFiles)
+
+	files := make([]string, 0, len(processedFiles))
+	for file := range processedFiles {
+		files = append(files, file)
+	}
+
+	return files, nil
+} // UpdateSSHHostV2 updates an existing SSH host configuration, searching in all config files
+func UpdateSSHHostV2(oldName string, newHost SSHHost) error {
+	// Find the host to determine which file it's in
+	existingHost, err := FindHostInAllConfigs(oldName)
+	if err != nil {
+		return err
+	}
+
+	// Update the host in its source file
+	newHost.SourceFile = existingHost.SourceFile
+	return UpdateSSHHostInFile(oldName, newHost, existingHost.SourceFile)
+}
+
+// DeleteSSHHostV2 removes an SSH host configuration, searching in all config files
+func DeleteSSHHostV2(hostName string) error {
+	// Find the host to determine which file it's in
+	existingHost, err := FindHostInAllConfigs(hostName)
+	if err != nil {
+		return err
+	}
+
+	// Delete the host from its source file
+	return DeleteSSHHostFromFile(hostName, existingHost.SourceFile)
+}
+
+// AddSSHHostWithFileSelection adds a new SSH host to a user-specified config file
+func AddSSHHostWithFileSelection(host SSHHost, targetFile string) error {
+	if targetFile == "" {
+		// Use default file if none specified
+		return AddSSHHost(host)
+	}
+	return AddSSHHostToFile(host, targetFile)
+}
+
+// GetIncludedConfigFiles returns a list of config files that can be used for adding hosts
+func GetIncludedConfigFiles() ([]string, error) {
+	allFiles, err := GetAllConfigFiles()
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter out files that don't exist or can't be written to
+	var writableFiles []string
+	mainConfig, err := GetDefaultSSHConfigPath()
+	if err == nil {
+		writableFiles = append(writableFiles, mainConfig)
+	}
+
+	for _, file := range allFiles {
+		if file == mainConfig {
+			continue // Already added
+		}
+
+		// Check if file exists and is writable
+		if info, err := os.Stat(file); err == nil && !info.IsDir() {
+			writableFiles = append(writableFiles, file)
+		}
+	}
+
+	return writableFiles, nil
 }

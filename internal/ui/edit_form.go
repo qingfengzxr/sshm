@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type editFormModel struct {
@@ -16,6 +17,7 @@ type editFormModel struct {
 	success      bool
 	styles       Styles
 	originalName string
+	host         *config.SSHHost // Store the original host with SourceFile
 	width        int
 	height       int
 	configFile   string
@@ -102,6 +104,7 @@ func NewEditForm(hostName string, styles Styles, width, height int, configFile s
 		inputs:       inputs,
 		focused:      nameInput,
 		originalName: hostName,
+		host:         host,
 		configFile:   configFile,
 		styles:       styles,
 		width:        width,
@@ -201,6 +204,24 @@ func (m *editFormModel) View() string {
 	var b strings.Builder
 
 	b.WriteString(m.styles.FormTitle.Render("Edit SSH Host Configuration"))
+	b.WriteString("\n")
+
+	// Show source file information
+	if m.host != nil && m.host.SourceFile != "" {
+		b.WriteString("\n") // Ligne d'espace avant Config file
+
+		// Style for "Config file:" label in primary color
+		labelStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#00ADD8")). // Primary color
+			Bold(true)
+
+		// Style for the file path in white
+		pathStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFFFFF"))
+
+		configInfo := labelStyle.Render("Config file: ") + pathStyle.Render(formatConfigFile(m.host.SourceFile))
+		b.WriteString(configInfo)
+	}
 	b.WriteString("\n\n")
 
 	fields := []string{
