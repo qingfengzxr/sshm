@@ -142,6 +142,7 @@ func (m *Model) updateTableHeight() {
 		return
 	}
 
+<<<<<<< HEAD
 	hostCount := len(m.table.Rows())
 
 	// Calculate exactly what we need:
@@ -154,6 +155,26 @@ func (m *Model) updateTableHeight() {
 	maxPossibleHeight := m.height - 7
 	if maxPossibleHeight < 4 {
 		maxPossibleHeight = 4 // Minimum: header + 3 rows
+=======
+	// Calculate dynamic table height based on terminal size
+	// Layout breakdown:
+	// - ASCII title: 5 lines (1 empty + 4 text lines)
+	// - Search bar: 1 line
+	// - Sort info: 1 line
+	// - Help text: 2 lines (multi-line text)
+	// - App margins/spacing: 2 lines
+	// Total reserved: 16 lines for more space
+	reservedHeight := 16
+	availableHeight := m.height - reservedHeight
+	hostCount := len(m.table.Rows())
+
+	// Minimum height should be at least 3 rows for basic usability
+	// Even in very small terminals, we want to show at least header + 2 hosts
+	minTableHeight := 4 // 1 header + 3 data rows minimum
+	maxTableHeight := availableHeight
+	if maxTableHeight < minTableHeight {
+		maxTableHeight = minTableHeight
+>>>>>>> main
 	}
 
 	if tableHeight > maxPossibleHeight {
