@@ -34,6 +34,7 @@ SSHM is a beautiful command-line tool that transforms how you manage and connect
 - **🔍 Smart Search** - Find hosts quickly with built-in filtering and search
 - **🔒 Secure** - Works directly with your existing `~/.ssh/config` file
 - **📁 Custom Config Support** - Use any SSH configuration file with the `-c` flag
+- **📂 SSH Include Support** - Full support for SSH Include directives to organize configurations across multiple files
 - **⚙️ SSH Options Support** - Add any SSH configuration option through intuitive forms
 - **🔄 Automatic Conversion** - Seamlessly converts between command-line and config formats
 
@@ -272,7 +273,55 @@ sshm edit hostname -c /path/to/custom/ssh_config
 
 SSHM works directly with your standard SSH configuration file (`~/.ssh/config`). It adds special comment tags for enhanced functionality while maintaining full compatibility with standard SSH tools.
 
+### SSH Include Support
+
+SSHM fully supports SSH Include directives, allowing you to organize your SSH configurations across multiple files. This is particularly useful for managing large numbers of hosts or organizing configurations by environment, project, or team.
+
+**Include Examples:**
+```ssh
+# Main ~/.ssh/config file
+Host personal-server
+    HostName personal.example.com
+    User myuser
+
+# Include work-related configurations
+Include work-servers.conf
+
+# Include all configurations from a directory
+Include projects/*
+
+# Include with relative paths
+Include ~/.ssh/configs/production.conf
+```
+
+**Organization Examples:**
+
+*work-servers.conf:*
+```ssh
+# Tags: work, production
+Host prod-web-01
+    HostName 10.0.1.10
+    User deploy
+    ProxyJump bastion.company.com
+
+# Tags: work, staging  
+Host staging-api
+    HostName staging-api.company.com
+    User developer
+```
+
+*projects/client-alpha.conf:*
+```ssh
+# Tags: client, development
+Host client-alpha-dev
+    HostName dev.client-alpha.com
+    User admin
+    Port 2222
+```
+
 **Example configuration:**
+Include ~/.ssh/conf.d/*
+
 ```ssh
 # Tags: production, web, frontend
 Host web-prod-01
@@ -452,6 +501,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [Charm](https://charm.sh/) for the amazing TUI libraries
 - [Cobra](https://cobra.dev/) for the excellent CLI framework
+- [@yimeng](https://github.com/yimeng) for contributing SSH Include directive support
 - The Go community for building such fantastic tools
 
 ---
