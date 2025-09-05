@@ -149,13 +149,14 @@ func (m *Model) updateTableHeight() {
 	// - Sort info: 1 line
 	// - Help text: 2 lines (multi-line text)
 	// - App margins/spacing: 2 lines
-	// Total reserved: 11 lines, mais réduisons à 7 pour forcer plus d'espace
-	reservedHeight := 7 // Réduction agressive pour tester
+	// Total reserved: 16 lines for more space
+	reservedHeight := 16
 	availableHeight := m.height - reservedHeight
 	hostCount := len(m.table.Rows())
 
-	// Minimum height should be at least 5 rows for usability
-	minTableHeight := 6 // 1 header + 5 data rows
+	// Minimum height should be at least 3 rows for basic usability
+	// Even in very small terminals, we want to show at least header + 2 hosts
+	minTableHeight := 4 // 1 header + 3 data rows minimum
 	maxTableHeight := availableHeight
 	if maxTableHeight < minTableHeight {
 		maxTableHeight = minTableHeight
