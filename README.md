@@ -243,6 +243,29 @@ sshm --version
 sshm --help
 ```
 
+### Backup Configuration
+
+SSHM automatically creates backups of your SSH configuration files before making any changes to ensure your configurations are safe.
+
+**Backup Location:**
+- **Unix/Linux/macOS**: `~/.config/sshm/backups/` (or `$XDG_CONFIG_HOME/sshm/backups/` if set)
+- **Windows**: `%APPDATA%\sshm\backups\` (fallback: `%USERPROFILE%\.config\sshm\backups\`)
+
+**Key Features:**
+- Automatic backup before any modification
+- One backup per file (overwrites previous backup)
+- Stored separately to avoid SSH Include conflicts
+- Easy manual recovery if needed
+
+**Quick Recovery:**
+```bash
+# Unix/Linux/macOS
+cp ~/.config/sshm/backups/config.backup ~/.ssh/config
+
+# Windows
+copy "%APPDATA%\sshm\backups\config.backup" "%USERPROFILE%\.ssh\config"
+```
+
 ### Configuration File Options
 
 By default, SSHM uses the standard SSH configuration file at `~/.ssh/config`. You can specify a different configuration file using the `-c` flag:

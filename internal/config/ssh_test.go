@@ -452,6 +452,122 @@ Include *.conf
 	}
 }
 
+func TestBackupConfigToSSHMDirectory(t *testing.T) {
+	// Create temporary directory for test files
+	tempDir := t.TempDir()
+
+	// Override the home directory for this test
+	originalHome := os.Getenv("HOME")
+	if originalHome == "" {
+		originalHome = os.Getenv("USERPROFILE") // Windows
+	}
+
+	// Set test home directory
+	os.Setenv("HOME", tempDir)
+	defer os.Setenv("HOME", originalHome)
+
+	// Create a test SSH config file
+	sshDir := filepath.Join(tempDir, ".ssh")
+	err := os.MkdirAll(sshDir, 0700)
+	if err != nil {
+		t.Fatalf("Failed to create .ssh directory: %v", err)
+	}
+
+	configPath := filepath.Join(sshDir, "config")
+	configContent := `Host test-host
+    HostName test.example.com
+    User testuser
+`
+
+	err = os.WriteFile(configPath, []byte(configContent), 0600)
+	if err != nil {
+		t.Fatalf("Failed to create config file: %v", err)
+	}
+
+	// Test backup creation
+	err = backupConfig(configPath)
+	if err != nil {
+		t.Fatalf("backupConfig() error = %v", err)
+	}
+
+	// Verify backup directory was created
+	backupDir, err := GetSSHMBackupDir()
+	if err != nil {
+		t.Fatalf("GetSSHMBackupDir() error = %v", err)
+	}
+
+	if _, err := os.Stat(backupDir); os.IsNotExist(err) {
+		t.Errorf("Backup directory was not created: %s", backupDir)
+	}
+
+	// Verify backup file was created
+	files, err := os.ReadDir(backupDir)
+	if err != nil {
+		t.Fatalf("Failed to read backup directory: %v", err)
+	}
+
+	if len(files) != 1 {
+		t.Errorf("Expected 1 backup file, got %d", len(files))
+	}
+
+	if len(files) > 0 {
+		backupFile := files[0]
+		expectedName := "config.backup"
+		if backupFile.Name() != expectedName {
+			t.Errorf("Backup file has unexpected name: got %s, want %s", backupFile.Name(), expectedName)
+		}
+
+		// Verify backup content
+		backupContent, err := os.ReadFile(filepath.Join(backupDir, backupFile.Name()))
+		if err != nil {
+			t.Fatalf("Failed to read backup file: %v", err)
+		}
+
+		if string(backupContent) != configContent {
+			t.Errorf("Backup content doesn't match original")
+		}
+	}
+
+	// Test that subsequent backups overwrite the previous one
+	newConfigContent := `Host test-host-updated
+    HostName updated.example.com
+    User updateduser
+`
+
+	err = os.WriteFile(configPath, []byte(newConfigContent), 0600)
+	if err != nil {
+		t.Fatalf("Failed to update config file: %v", err)
+	}
+
+	// Create second backup
+	err = backupConfig(configPath)
+	if err != nil {
+		t.Fatalf("Second backupConfig() error = %v", err)
+	}
+
+	// Verify still only one backup file exists
+	files, err = os.ReadDir(backupDir)
+	if err != nil {
+		t.Fatalf("Failed to read backup directory after second backup: %v", err)
+	}
+
+	if len(files) != 1 {
+		t.Errorf("Expected still 1 backup file after overwrite, got %d", len(files))
+	}
+
+	// Verify backup content was updated
+	if len(files) > 0 {
+		backupContent, err := os.ReadFile(filepath.Join(backupDir, files[0].Name()))
+		if err != nil {
+			t.Fatalf("Failed to read updated backup file: %v", err)
+		}
+
+		if string(backupContent) != newConfigContent {
+			t.Errorf("Updated backup content doesn't match new config content")
+		}
+	}
+}
+
 func TestFindHostInAllConfigs(t *testing.T) {
 	// Create temporary directory for test files
 	tempDir := t.TempDir()

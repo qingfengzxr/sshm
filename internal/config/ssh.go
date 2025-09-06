@@ -40,6 +40,36 @@ func GetDefaultSSHConfigPath() (string, error) {
 	}
 }
 
+// GetSSHMBackupDir returns the SSHM backup directory
+func GetSSHMBackupDir() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	var configDir string
+	switch runtime.GOOS {
+	case "windows":
+		// Use %APPDATA%/sshm on Windows
+		appData := os.Getenv("APPDATA")
+		if appData != "" {
+			configDir = filepath.Join(appData, "sshm")
+		} else {
+			configDir = filepath.Join(homeDir, ".config", "sshm")
+		}
+	default:
+		// Use XDG Base Directory specification
+		xdgConfigDir := os.Getenv("XDG_CONFIG_HOME")
+		if xdgConfigDir != "" {
+			configDir = filepath.Join(xdgConfigDir, "sshm")
+		} else {
+			configDir = filepath.Join(homeDir, ".config", "sshm")
+		}
+	}
+
+	return filepath.Join(configDir, "backups"), nil
+}
+
 // GetSSHDirectory returns the .ssh directory path
 func GetSSHDirectory() (string, error) {
 	homeDir, err := os.UserHomeDir()
@@ -67,9 +97,23 @@ func ensureSSHDirectory() error {
 // configMutex protects SSH config file operations from race conditions
 var configMutex sync.Mutex
 
-// backupConfig creates a backup of the SSH config file
+// backupConfig creates a backup of the SSH config file in ~/.config/sshm/backups/
 func backupConfig(configPath string) error {
-	backupPath := configPath + ".backup"
+	// Get backup directory and ensure it exists
+	backupDir, err := GetSSHMBackupDir()
+	if err != nil {
+		return fmt.Errorf("failed to get backup directory: %w", err)
+	}
+
+	if err := os.MkdirAll(backupDir, 0755); err != nil {
+		return fmt.Errorf("failed to create backup directory: %w", err)
+	}
+
+	// Create simple backup filename (overwrites previous backup)
+	filename := filepath.Base(configPath)
+	backupPath := filepath.Join(backupDir, filename+".backup")
+
+	// Copy file
 	src, err := os.Open(configPath)
 	if err != nil {
 		return err
@@ -82,8 +126,12 @@ func backupConfig(configPath string) error {
 	}
 	defer dst.Close()
 
-	_, err = io.Copy(dst, src)
-	return err
+	if _, err = io.Copy(dst, src); err != nil {
+		return err
+	}
+
+	// Set appropriate permissions
+	return os.Chmod(backupPath, 0600)
 }
 
 // ParseSSHConfig parses the SSH config file and returns the list of hosts
