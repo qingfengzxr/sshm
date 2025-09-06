@@ -3,8 +3,8 @@ package ui
 import (
 	"strings"
 
-	"sshm/internal/config"
-	"sshm/internal/history"
+	"github.com/Gu1llaum-3/sshm/internal/config"
+	"github.com/Gu1llaum-3/sshm/internal/history"
 
 	"github.com/charmbracelet/bubbles/table"
 )

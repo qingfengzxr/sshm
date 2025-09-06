@@ -6,8 +6,8 @@ import (
 	"os/exec"
 	"time"
 
-	"sshm/internal/config"
-	"sshm/internal/connectivity"
+	"github.com/Gu1llaum-3/sshm/internal/config"
+	"github.com/Gu1llaum-3/sshm/internal/connectivity"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"

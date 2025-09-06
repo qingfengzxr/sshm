@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	"sshm/internal/config"
+	"github.com/Gu1llaum-3/sshm/internal/config"
 )
 
 // ConnectionHistory represents the history of SSH connections

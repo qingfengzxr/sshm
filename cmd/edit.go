@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"sshm/internal/ui"
+	"github.com/Gu1llaum-3/sshm/internal/ui"
 
 	"github.com/spf13/cobra"
 )

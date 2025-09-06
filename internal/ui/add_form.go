@@ -4,8 +4,8 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"sshm/internal/config"
-	"sshm/internal/validation"
+	"github.com/Gu1llaum-3/sshm/internal/config"
+	"github.com/Gu1llaum-3/sshm/internal/validation"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
