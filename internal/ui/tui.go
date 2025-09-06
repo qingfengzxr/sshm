@@ -52,7 +52,7 @@ func NewModel(hosts []config.SSHHost, configFile string) Model {
 	ti := textinput.New()
 	ti.Placeholder = "Search hosts or tags..."
 	ti.CharLimit = 50
-	ti.Width = 50
+	ti.Width = 25
 
 	// Use dynamic column width calculation (will fallback to static if width not available)
 	nameWidth, hostnameWidth, tagsWidth, lastLoginWidth := m.calculateDynamicColumnWidths(sortedHosts)
