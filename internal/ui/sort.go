@@ -57,6 +57,12 @@ func (m Model) filterHosts(query string) []config.SSHHost {
 				continue
 			}
 
+			// Check the user
+			if strings.Contains(strings.ToLower(host.User), query) {
+				filtered = append(filtered, host)
+				continue
+			}
+
 			// Check the tags
 			for _, tag := range host.Tags {
 				if strings.Contains(strings.ToLower(tag), query) {

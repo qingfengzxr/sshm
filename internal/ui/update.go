@@ -364,6 +364,7 @@ func (m Model) handleListViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.updateTableStyles()
 			m.table.Blur()
 			m.searchInput.Focus()
+			// Don't trigger filtering when entering search mode - wait for user input
 			return m, textinput.Blink
 		}
 	case "tab":
@@ -381,6 +382,7 @@ func (m Model) handleListViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.updateTableStyles()
 				m.table.Blur()
 				m.searchInput.Focus()
+				// Don't trigger filtering when switching to search mode
 				return m, textinput.Blink
 			}
 			return m, nil
@@ -619,12 +621,17 @@ func (m Model) handleListViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.searchInput, cmd = m.searchInput.Update(msg)
 		// Update filtered hosts only if the search value has changed
 		if m.searchInput.Value() != oldValue {
+			currentCursor := m.table.Cursor()
 			if m.searchInput.Value() != "" {
 				m.filteredHosts = m.filterHosts(m.searchInput.Value())
 			} else {
 				m.filteredHosts = m.sortHosts(m.hosts)
 			}
 			m.updateTableRows()
+			// If the current cursor position is beyond the filtered results, reset to 0
+			if currentCursor >= len(m.filteredHosts) && len(m.filteredHosts) > 0 {
+				m.table.SetCursor(0)
+			}
 		}
 	} else {
 		m.table, cmd = m.table.Update(msg)
