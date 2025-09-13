@@ -4,9 +4,10 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
+
 	"github.com/Gu1llaum-3/sshm/internal/config"
 	"github.com/Gu1llaum-3/sshm/internal/validation"
-	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -148,8 +149,8 @@ func (m *addFormModel) Update(msg tea.Msg) (*addFormModel, tea.Cmd) {
 		case "ctrl+c", "esc":
 			return m, func() tea.Msg { return addFormCancelMsg{} }
 
-		case "ctrl+enter":
-			// Allow submission from any field with Ctrl+Enter
+		case "ctrl+s":
+			// Allow submission from any field with Ctrl+S (Save)
 			return m, m.submitForm()
 
 		case "tab", "shift+tab", "enter", "up", "down":
@@ -238,7 +239,7 @@ func (m *addFormModel) View() string {
 		b.WriteString("\n\n")
 	}
 
-	b.WriteString(m.styles.FormHelp.Render("Tab/Shift+Tab: navigate • Enter on last field: submit • Ctrl+Enter: submit • Ctrl+C/Esc: cancel"))
+	b.WriteString(m.styles.FormHelp.Render("Tab/Shift+Tab: navigate • Enter on last field: submit • Ctrl+S: save • Ctrl+C/Esc: cancel"))
 	b.WriteString("\n")
 	b.WriteString(m.styles.FormHelp.Render("* Required fields"))
 
