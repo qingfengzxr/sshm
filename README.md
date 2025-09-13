@@ -25,35 +25,29 @@ SSHM is a beautiful command-line tool that transforms how you manage and connect
 
 ## ✨ Features
 
-### 🎯 **Core Features**
+### 🚀 **Core Capabilities**
 - **🎨 Beautiful TUI Interface** - Navigate your SSH hosts with an elegant, interactive terminal UI
-- **⚡ Quick Connect** - Connect to any host instantly
-- **🔄 Port Forwarding** - Easy setup for Local, Remote, and Dynamic (SOCKS) forwarding
-- **📝Easy Management** - Add, edit, and manage SSH configurations seamlessly
+- **⚡ Quick Connect** - Connect to any host instantly through the TUI or the CLI with `sshm <host>`
+- **🔄 Port Forwarding** - Easy setup for Local, Remote, and Dynamic (SOCKS) forwarding with history persistence
+- **📝 Easy Management** - Add, edit, move, and manage SSH configurations seamlessly
 - **🏷️ Tag Support** - Organize your hosts with custom tags for better categorization
 - **🔍 Smart Search** - Find hosts quickly with built-in filtering and search
+- **📝 Real-time Status** - Live SSH connectivity indicators with asynchronous ping checks and color-coded status
+- **🔔 Smart Updates** - Automatic version checking with update notifications
+- **📈 Connection History** - Track your SSH connections with last login timestamps
+
+### 🛠️ **Technical Features**
 - **🔒 Secure** - Works directly with your existing `~/.ssh/config` file
 - **📁 Custom Config Support** - Use any SSH configuration file with the `-c` flag
 - **📂 SSH Include Support** - Full support for SSH Include directives to organize configurations across multiple files
 - **⚙️ SSH Options Support** - Add any SSH configuration option through intuitive forms
 - **🔄 Automatic Conversion** - Seamlessly converts between command-line and config formats
-
-### 🛠️ **Management Operations**
-- **Add new SSH hosts** with interactive forms
-- **Edit existing configurations** in-place
-- **Delete hosts** with confirmation prompts
-- **Port forwarding setup** with intuitive interface for Local (-L), Remote (-R), and Dynamic (-D) forwarding
-- **Backup configurations** automatically before changes
-- **Validate settings** to prevent configuration errors
-- **ProxyJump support** for secure connection tunneling through bastion hosts
-- **SSH Options management** - Add any SSH option with automatic format conversion
-- **Full SSH compatibility** - Maintains compatibility with standard SSH tools
-
-### 🎮 **User Experience**
-- **Zero configuration** - Works out of the box with your existing SSH setup
-- **Keyboard shortcuts** for power users
-- **Cross-platform** - Supports Linux, macOS (Intel & Apple Silicon), and Windows
-- **Lightweight** - Single binary with no dependencies
+- **🔄 Automatic Backups** - Backup configurations automatically before changes
+- **✅ Validation** - Prevent configuration errors with built-in validation
+- **🔗 ProxyJump Support** - Secure connection tunneling through bastion hosts
+- **⌨️ Keyboard Shortcuts** - Power user navigation with vim-like shortcuts
+- **🌐 Cross-platform** - Supports Linux, macOS (Intel & Apple Silicon), and Windows
+- **⚡ Lightweight** - Single binary with no dependencies, zero configuration required
 
 ## 🚀 Quick Start
 
@@ -105,9 +99,16 @@ sshm
 - `a` - Add new host
 - `e` - Edit selected host
 - `d` - Delete selected host
+- `m` - Move host to another config file (requires SSH Include directives)
 - `f` - Port forwarding setup
 - `q` - Quit
 - `/` - Search/filter hosts
+
+**Real-time Status Indicators:**
+- 🟢 **Online** - Host is reachable via SSH
+- 🟡 **Connecting** - Currently checking host connectivity
+- 🔴 **Offline** - Host is unreachable or SSH connection failed
+- ⚫ **Unknown** - Connectivity status not yet determined
 
 **Sorting & Filtering:**
 - `s` - Switch between sorting modes (name ↔ last login)
@@ -158,6 +159,7 @@ SSHM provides an intuitive interface for setting up SSH port forwarding. Press `
 - Configure ports and addresses with guided forms
 - Optional bind address configuration (defaults to 127.0.0.1)
 - Real-time validation of port numbers and addresses
+- **Port forwarding history** - Save frequently used configurations for quick reuse
 - Connect automatically with configured forwarding options
 
 **Troubleshooting Port Forwarding:**
@@ -218,8 +220,14 @@ SSHM provides both command-line operations and an interactive TUI interface:
 # Launch interactive TUI mode for browsing and connecting to hosts
 sshm
 
+# Connect directly to a specific host (with history tracking)
+sshm my-server
+
 # Launch TUI with custom SSH config file
 sshm -c /path/to/custom/ssh_config
+
+# Connect directly with custom SSH config file
+sshm my-server -c /path/to/custom/ssh_config
 
 # Add a new host using interactive form
 sshm add
@@ -236,12 +244,41 @@ sshm edit my-server
 # Edit host with custom SSH config file
 sshm edit my-server -c /path/to/custom/ssh_config
 
-# Show version information
+# Move a host to another SSH config file (requires Include directives)
+sshm move my-server
+
+# Move host with custom SSH config file (requires Include directives)
+sshm move my-server -c /path/to/custom/ssh_config
+
+# Search for hosts (interactive filter)
+sshm search
+
+# Show version information (includes update check)
 sshm --version
 
 # Show help and available commands
 sshm --help
 ```
+
+### Direct Host Connection
+
+SSHM supports direct connection to hosts via the command line, making it easy to integrate into your existing workflow:
+
+```bash
+# Connect directly to any configured host
+sshm production-server
+sshm db-staging
+sshm web-01
+
+# All direct connections are tracked in your history
+# Use the TUI to see your most recently connected hosts
+```
+
+**Features of Direct Connection:**
+- **Instant connection** - No TUI navigation required
+- **History tracking** - All connections are recorded with timestamps
+- **Error handling** - Clear messages if host doesn't exist or configuration issues
+- **Config file support** - Works with custom config files using `-c` flag
 
 ### Backup Configuration
 
@@ -256,6 +293,10 @@ SSHM automatically creates backups of your SSH configuration files before making
 - One backup per file (overwrites previous backup)
 - Stored separately to avoid SSH Include conflicts
 - Easy manual recovery if needed
+
+**Additional Storage:**
+- **Connection History**: Stored in the same config directory for persistent tracking
+- **Port Forwarding History**: Saved configurations for quick reuse of common forwarding setups
 
 **Quick Recovery:**
 ```bash
@@ -277,7 +318,95 @@ sshm -c /path/to/custom/ssh_config
 # Use custom config file with commands
 sshm add hostname -c /path/to/custom/ssh_config
 sshm edit hostname -c /path/to/custom/ssh_config
+sshm move hostname -c /path/to/custom/ssh_config
 ```
+
+### Advanced Features
+
+#### Host Movement Between Config Files
+
+SSHM provides a powerful `move` command to relocate SSH hosts between different configuration files. **This feature requires SSH Include directives to be present in your SSH configuration.**
+
+```bash
+# Move a host to another config file (requires Include directives)
+sshm move my-server
+
+# Move with custom config file (requires Include directives)
+sshm move my-server -c /path/to/custom/ssh_config
+```
+
+**⚠️ Important Requirements:**
+- **SSH Include directives must be present** in your SSH config file (either `~/.ssh/config` or the file specified with `-c`)
+- The config file must contain `Include` statements referencing other SSH configuration files
+- Without Include directives, the move command will display an error message
+
+**Features:**
+- **Interactive file selector** - Choose destination config file from Include directives
+- **Include support** - Works seamlessly with SSH Include directives structure
+- **Atomic operations** - Safe host movement with automatic backups
+- **Validation** - Prevents conflicts and ensures configuration integrity
+- **Error handling** - Clear messages when Include files are needed but not found
+
+**Use Cases:**
+- Reorganize hosts from main config to specialized include files
+- Move development hosts to separate environment-specific configs
+- Consolidate configurations for better organization
+
+**Example Setup Required:**
+Your main SSH config file must contain Include directives like:
+```ssh
+# ~/.ssh/config
+Include ~/.ssh/config.d/*
+Include work-servers.conf
+Include projects/*.conf
+
+Host personal-server
+    HostName personal.example.com
+    User myuser
+```
+
+#### Real-time Connectivity Status
+
+SSHM features asynchronous SSH connectivity checking that provides visual indicators of host availability:
+
+**Status Indicators:**
+- 🟢 **Online** - SSH connection successful (shows response time)
+- 🟡 **Connecting** - Currently testing connectivity
+- 🔴 **Offline** - SSH connection failed or host unreachable
+- ⚫ **Unknown** - Status not yet determined
+
+**Features:**
+- **Non-blocking checks** - Status updates happen in the background
+- **Response time tracking** - See connection latency for online hosts
+- **Automatic refresh** - Status indicators update continuously
+- **Error details** - Detailed error information for failed connections
+
+#### Automatic Update Checking
+
+SSHM includes built-in version checking that notifies you of available updates:
+
+**Features:**
+- **Background checking** - Version check happens asynchronously
+- **Release notifications** - Clear indicators when updates are available
+- **Pre-release detection** - Identifies beta and development versions
+- **GitHub integration** - Direct links to release pages
+- **Non-intrusive** - Updates don't interrupt your workflow
+
+**Update notifications appear:**
+- In the main TUI interface as a subtle notification
+- In the `sshm --version` command output
+- Only when a newer stable version is available
+
+#### Port Forwarding History
+
+SSHM remembers your port forwarding configurations for easy reuse:
+
+**Features:**
+- **Automatic saving** - Successful forwarding setups are saved automatically
+- **Quick reuse** - Previously used configurations appear as suggestions
+- **Per-host history** - Forwarding history is tracked per SSH host
+- **All forward types** - Supports Local (-L), Remote (-R), and Dynamic (-D) forwarding history
+- **Persistent storage** - History survives application restarts
 
 ### Platform-Specific Notes
 
@@ -449,20 +578,29 @@ sshm/
 │   ├── root.go         # Root command and interactive mode
 │   ├── add.go          # Add host command
 │   ├── edit.go         # Edit host command
+│   ├── move.go         # Move host command
 │   └── search.go       # Search command
 ├── internal/
 │   ├── config/         # SSH configuration management
 │   │   └── ssh.go      # Config parsing and manipulation
+│   ├── connectivity/   # SSH connectivity checking
+│   │   └── ping.go     # Asynchronous SSH ping functionality
 │   ├── history/        # Connection history tracking
-│   │   └── history.go  # History management and last login tracking
+│   │   ├── history.go  # History management and last login tracking
+│   │   └── port_forward_test.go # Port forwarding history tests
+│   ├── version/        # Version checking and updates
+│   │   ├── version.go  # GitHub release checking and version comparison
+│   │   └── version_test.go # Version parsing and comparison tests
 │   ├── ui/             # Terminal UI components (Bubble Tea)
 │   │   ├── tui.go      # Main TUI interface and program setup
 │   │   ├── model.go    # Core TUI model and state
 │   │   ├── update.go   # Message handling and state updates
 │   │   ├── view.go     # UI rendering and layout
-│   │   ├── table.go    # Host list table component
+│   │   ├── table.go    # Host list table component with status indicators
 │   │   ├── add_form.go # Add host form interface
 │   │   ├── edit_form.go# Edit host form interface
+│   │   ├── move_form.go# Move host form interface
+│   │   ├── port_forward_form.go # Port forwarding setup with history
 │   │   ├── styles.go   # Lip Gloss styling definitions
 │   │   ├── sort.go     # Sorting and filtering logic
 │   │   └── utils.go    # UI utility functions
@@ -490,6 +628,7 @@ sshm/
 - [Bubble Tea](https://github.com/charmbracelet/bubbletea) - TUI framework
 - [Bubbles](https://github.com/charmbracelet/bubbles) - TUI components
 - [Lipgloss](https://github.com/charmbracelet/lipgloss) - Styling
+- [Go Crypto SSH](https://golang.org/x/crypto/ssh) - SSH connectivity checking
 
 ## 📦 Releases
 
