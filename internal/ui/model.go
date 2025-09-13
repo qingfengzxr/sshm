@@ -99,6 +99,10 @@ type Model struct {
 	height int
 	styles Styles
 	ready  bool
+
+	// Error handling
+	errorMessage string
+	showingError bool
 }
 
 // updateTableStyles updates the table header border color based on focus state

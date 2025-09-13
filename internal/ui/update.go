@@ -19,6 +19,7 @@ type (
 	pingResultMsg   *connectivity.HostPingResult
 	versionCheckMsg *version.UpdateInfo
 	versionErrorMsg error
+	errorMsg        string
 )
 
 // startPingAllCmd creates a command to ping all hosts concurrently
@@ -155,6 +156,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Handle version check error (silently - not critical)
 		// We don't want to show error messages for version checks
 		// as it might disrupt the user experience
+		return m, nil
+
+	case errorMsg:
+		// Handle general error messages
+		if string(msg) == "clear" {
+			m.showingError = false
+			m.errorMessage = ""
+		}
 		return m, nil
 
 	case addFormSubmitMsg:
@@ -587,8 +596,13 @@ func (m Model) handleListViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				hostName := extractHostNameFromTableRow(selected[0]) // Extract hostname from first column
 				moveForm, err := NewMoveForm(hostName, m.styles, m.width, m.height, m.configFile)
 				if err != nil {
-					// Handle error - could show in UI, e.g., no other config files available
-					return m, nil
+					// Show error message to user
+					m.errorMessage = err.Error()
+					m.showingError = true
+					return m, func() tea.Msg {
+						time.Sleep(3 * time.Second) // Show error for 3 seconds
+						return errorMsg("clear")
+					}
 				}
 				m.moveForm = moveForm
 				m.viewMode = ViewMove

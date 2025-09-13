@@ -42,7 +42,7 @@ func NewMoveForm(hostName string, styles Styles, width, height int, configFile s
 	}
 
 	if len(files) == 0 {
-		return nil, fmt.Errorf("no other config files available to move host to")
+		return nil, fmt.Errorf("no includes found in SSH config file - move operation requires multiple config files")
 	}
 
 	// Create a custom file selector for move operation

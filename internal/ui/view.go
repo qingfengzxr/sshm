@@ -72,6 +72,20 @@ func (m Model) renderListView() string {
 		components = append(components, updateStyle.Render(updateText))
 	}
 
+	// Add error message if there's one to show
+	if m.showingError && m.errorMessage != "" {
+		errorStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("9")). // Red color
+			Background(lipgloss.Color("1")). // Dark red background
+			Bold(true).
+			Padding(0, 1).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("9")).
+			Align(lipgloss.Center)
+
+		components = append(components, errorStyle.Render("❌ "+m.errorMessage))
+	}
+
 	// Add the search bar with the appropriate style based on focus
 	searchPrompt := "Search (/ to focus): "
 	if m.searchMode {
