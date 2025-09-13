@@ -71,9 +71,9 @@ jobs:
         # Remove 'v' prefix if present for version injection
         VERSION_CLEAN=${VERSION#v}
         if [ "${{ matrix.goos }}" = "windows" ]; then
-          go build -ldflags="-s -w -X github.com/Gu1llaum-3/sshm/cmd.version=${VERSION_CLEAN}" -o dist/sshm-${{ matrix.suffix }}.exe .
+          go build -ldflags="-s -w -X github.com/Gu1llaum-3/sshm/cmd.AppVersion=${VERSION_CLEAN}" -o dist/sshm-${{ matrix.suffix }}.exe .
         else
-          go build -ldflags="-s -w -X github.com/Gu1llaum-3/sshm/cmd.version=${VERSION_CLEAN}" -o dist/sshm-${{ matrix.suffix }} .
+          go build -ldflags="-s -w -X github.com/Gu1llaum-3/sshm/cmd.AppVersion=${VERSION_CLEAN}" -o dist/sshm-${{ matrix.suffix }} .
         fi
 
     - name: Create archive
