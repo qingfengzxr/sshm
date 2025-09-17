@@ -80,7 +80,11 @@ if ($LocalBinary -ne "") {
     }
 
     # Download binary
-    $fileName = "sshm-windows-$arch.zip"
+    # Map architecture to match GoReleaser format
+    $goreleaserArch = if ($arch -eq "amd64") { "x86_64" } else { "i386" }
+    
+    # GoReleaser format: sshm_Windows_x86_64.zip
+    $fileName = "sshm_Windows_$goreleaserArch.zip"
     $downloadUrl = "https://github.com/Gu1llaum-3/sshm/releases/download/$latestVersion/$fileName"
     $tempFile = "$env:TEMP\$fileName"
 
@@ -101,7 +105,8 @@ if ($LocalBinary -ne "") {
     Write-Info "Extracting..."
     try {
         Expand-Archive -Path $tempFile -DestinationPath $env:TEMP -Force
-        $extractedBinary = "$env:TEMP\sshm-windows-$arch.exe"
+        # GoReleaser extracts the binary as just "sshm.exe", not with platform suffix
+        $extractedBinary = "$env:TEMP\sshm.exe"
         $targetPath = "$InstallDir\sshm.exe"
         
         Move-Item -Path $extractedBinary -Destination $targetPath -Force
