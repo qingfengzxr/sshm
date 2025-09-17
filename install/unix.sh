@@ -56,7 +56,25 @@ getLatestVersion() {
 }
 
 downloadBinary() {
-    GITHUB_FILE="sshm-${OS}-${ARCH}.tar.gz"
+    # Map OS names to match GoReleaser format
+    local GORELEASER_OS="$OS"
+    case $OS in
+        "darwin") GORELEASER_OS="Darwin" ;;
+        "linux") GORELEASER_OS="Linux" ;;
+        "windows") GORELEASER_OS="Windows" ;;
+    esac
+    
+    # Map architecture names to match GoReleaser format  
+    local GORELEASER_ARCH="$ARCH"
+    case $ARCH in
+        "amd64") GORELEASER_ARCH="x86_64" ;;
+        "arm64") GORELEASER_ARCH="arm64" ;;
+        "386") GORELEASER_ARCH="i386" ;;
+        "arm") GORELEASER_ARCH="armv6" ;;
+    esac
+    
+    # GoReleaser format: sshm_Darwin_arm64.tar.gz
+    GITHUB_FILE="sshm_${GORELEASER_OS}_${GORELEASER_ARCH}.tar.gz"
     GITHUB_URL="https://github.com/Gu1llaum-3/sshm/releases/download/$LATEST_VERSION/$GITHUB_FILE"
     
     printf "${YELLOW}Downloading $GITHUB_FILE...${NC}\n"
@@ -74,8 +92,8 @@ downloadBinary() {
         exit 1
     fi
     
-    # Check if the expected binary exists (no find needed)
-    EXTRACTED_BINARY="./sshm-${OS}-${ARCH}"
+    # GoReleaser extracts the binary as just "sshm", not with the platform suffix
+    EXTRACTED_BINARY="./sshm"
     if [ ! -f "$EXTRACTED_BINARY" ]; then
         printf "${RED}Could not find extracted binary: $EXTRACTED_BINARY${NC}\n"
         exit 1
