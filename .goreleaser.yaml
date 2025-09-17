@@ -100,7 +100,6 @@ release:
   draft: false
   replace_existing_draft: true
   target_commitish: "{{ .Commit }}"
-  discussion_category_name: General
   name_template: "{{.ProjectName}} {{.Version}}"
   header: |
     ## SSHM {{.Version}}
