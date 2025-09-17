@@ -53,6 +53,11 @@ SSHM is a beautiful command-line tool that transforms how you manage and connect
 
 ### Installation
 
+**Homebrew (Recommended for macOS):**
+```bash
+brew install Gu1llaum-3/sshm/sshm
+```
+
 **Unix/Linux/macOS (One-line install):**
 ```bash
 curl -sSL https://raw.githubusercontent.com/Gu1llaum-3/sshm/main/install/unix.sh | bash
