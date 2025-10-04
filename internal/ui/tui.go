@@ -152,6 +152,12 @@ func RunInteractiveMode(hosts []config.SSHHost, configFile, currentVersion strin
 
 	// Start the application in alt screen mode for clean output
 	p := tea.NewProgram(m, tea.WithAltScreen())
+
+	// Send initial command to start auto-ping when the program starts
+	go func() {
+		p.Send(autoPingMsg{})
+	}()
+
 	_, err := p.Run()
 	if err != nil {
 		return fmt.Errorf("error running TUI: %w", err)

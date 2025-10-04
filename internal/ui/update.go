@@ -20,6 +20,7 @@ type (
 	versionCheckMsg *version.UpdateInfo
 	versionErrorMsg error
 	errorMsg        string
+	autoPingMsg     struct{}
 )
 
 // startPingAllCmd creates a command to ping all hosts concurrently
@@ -144,6 +145,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.updateTableRows()
 		}
 		return m, nil
+
+	case autoPingMsg:
+		// Handle auto-ping on startup - start pinging all hosts
+		return m, m.startPingAllCmd()
 
 	case versionCheckMsg:
 		// Handle version check result
